@@ -1064,9 +1064,9 @@ fn test_parse_specialization(#[case] input: &str) {
 }
 
 #[rstest]
-#[case(":> :> BaseType")]
-#[case("subsets specializes BaseClass")]
-#[case(":> :> public MyBase")]
+#[case(":> BaseType")]
+#[case("subsets BaseClass")]
+#[case(":> Base::MyType")]
 fn test_parse_subsetting(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::subsetting, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1074,9 +1074,9 @@ fn test_parse_subsetting(#[case] input: &str) {
 }
 
 #[rstest]
-#[case(":>> :> :> BaseType")]
-#[case("redefines subsets specializes OldFeature")]
-#[case(":>> :> specializes public base")]
+#[case(":>> BaseType")]
+#[case("redefines OldFeature")]
+#[case(":>> Base::Type")]
 fn test_parse_redefinition(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::redefinition, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1084,8 +1084,9 @@ fn test_parse_redefinition(#[case] input: &str) {
 }
 
 #[rstest]
-#[case("::> :> :> RefType")]
-#[case("references subsets specializes RefFeature")]
+#[case("::> RefType")]
+#[case("references RefFeature")]
+#[case("::> Ref::Feature")]
 fn test_parse_reference_subsetting(#[case] input: &str) {
     let pairs =
         KerMLParser::parse(syster::parser::kerml::Rule::reference_subsetting, input).unwrap();
@@ -1094,8 +1095,9 @@ fn test_parse_reference_subsetting(#[case] input: &str) {
 }
 
 #[rstest]
-#[case("=> :> :> CrossedType")]
-#[case("crosses subsets specializes CrossedFeature")]
+#[case("=> CrossedType")]
+#[case("crosses CrossedFeature")]
+#[case("=> Cross::Type")]
 fn test_parse_cross_subsetting(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::cross_subsetting, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1535,6 +1537,16 @@ fn test_parse_feature_with_multiplicity_properties(#[case] input: &str) {
 #[case("out composite derived feature MyFeature nonunique;")]
 #[case("inout portion end feature MyFeature ordered nonunique;")]
 fn test_parse_feature_combined_modifiers(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+#[rstest]
+#[case("feature elements[0..*] :>> Collection::elements {}")]
+#[case("feature myFeature[1] :> BaseFeature;")]
+#[case("feature items[*] : ItemType ordered;")]
+fn test_parse_feature_with_multiplicity_and_relationships(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), input);

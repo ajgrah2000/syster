@@ -281,6 +281,14 @@ type_relationship = {
     | intersecting
 }
 
+// Heritage - inheritance-based relationships for types
+heritage = {
+    specialization
+    | subsetting
+    | redefinition
+    | conjugation
+}
+
 // Feature Relationships - relationships specific to features
 feature_relationship = {
     type_relationship
@@ -290,13 +298,18 @@ feature_relationship = {
     | type_featuring
 }
 
+// Multiplicity Bounds - the [lower..upper] syntax
+multiplicity_bounds = {
+    "[" ~ (number | "*") ~ (".." ~ (number | "*"))? ~ "]"
+}
+
 // Type extends Namespace
 type_def = {
     prefix_metadata? ~
     "abstract"? ~
     "type" ~ identification? ~
     "all"? ~
-    (type_relationship | feature_relationship)* ~
+    (heritage | type_relationship | feature_relationship)* ~
     multiplicity? ~
     ("ordered" | "nonunique")* ~
     namespace_body
@@ -308,7 +321,7 @@ classifier = {
     "abstract"? ~
     "classifier" ~ identification? ~
     "all"? ~
-    (type_relationship | feature_relationship)* ~
+    (heritage | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -432,8 +445,8 @@ feature = {
     ("abstract" | "composite" | "portion")? ~
     ("readonly" | "derived" | "end")? ~
     "feature" ~ identification? ~
-    (feature_typing | feature_relationship)* ~
-    multiplicity? ~
+    multiplicity_bounds? ~
+    (heritage | type_relationship | feature_relationship)* ~
     ("ordered" | "nonunique")* ~
     feature_value? ~
     namespace_body
@@ -658,7 +671,7 @@ subclassification = {
 
 // Subsetting extends Specialization
 subsetting = {
-    subsets_token ~ specialization
+    subsets_token ~ inheritance
 }
 
 // Conjugation extends Inheritance
@@ -668,17 +681,17 @@ conjugation = {
 
 // Redefinition extends Subsetting
 redefinition = {
-    redefines_token ~ subsetting
+    redefines_token ~ inheritance
 }
 
 // ReferenceSubsetting extends Subsetting
 reference_subsetting = {
-    references_token ~ subsetting
+    references_token ~ inheritance
 }
 
 // CrossSubsetting extends Subsetting
 cross_subsetting = {
-    crosses_token ~ subsetting
+    crosses_token ~ inheritance
 }
 
 // Dependency extends Relationship
