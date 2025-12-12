@@ -3,7 +3,7 @@
 
 use pest::Parser;
 use rstest::rstest;
-use syster::language::kerml::interfaces::*;
+use syster::language::kerml::enums::*;
 use syster::language::kerml::types::*;
 use syster::parser::KerMLParser;
 

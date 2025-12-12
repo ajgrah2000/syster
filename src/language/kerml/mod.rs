@@ -1,7 +1,4 @@
 // KerML language definitions
-pub mod interfaces;
-pub mod types;
+pub mod model;
 
-// Re-export types for convenience
-pub use interfaces::*;
-pub use types::*;
+pub use model::*;

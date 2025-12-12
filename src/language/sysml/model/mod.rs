@@ -1,5 +1,5 @@
-// Type exports for SysML v2
-
 pub mod enums;
+pub mod types;
 
 pub use enums::*;
+pub use types::*;

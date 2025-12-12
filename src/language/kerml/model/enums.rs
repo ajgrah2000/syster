@@ -1,6 +1,11 @@
-// Simple enum types for KerML
+use super::super::types::Annotation;
+use super::super::types::Membership;
+use super::super::types::{
+    CollectExpression, FeatureChainExpression, FeatureReferenceExpression, IndexExpression,
+    InvocationExpression, LiteralExpression, MetadataAccessExpression, NullExpression,
+    OperatorExpression, SelectExpression,
+};
 
-/// Visibility modifier for elements
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum VisibilityKind {
     Private,
@@ -8,7 +13,6 @@ pub enum VisibilityKind {
     Public,
 }
 
-/// Direction of feature flow
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FeatureDirectionKind {
     In,
@@ -16,7 +20,6 @@ pub enum FeatureDirectionKind {
     Out,
 }
 
-/// Unary operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UnaryOperator {
     Plus,
@@ -25,7 +28,6 @@ pub enum UnaryOperator {
     BitwiseNot,
 }
 
-/// Classification test operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ClassificationTestOperator {
     At,
@@ -33,7 +35,6 @@ pub enum ClassificationTestOperator {
     IsType,
 }
 
-/// Equality comparison operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EqualityOperator {
     NotEqual,
@@ -42,7 +43,6 @@ pub enum EqualityOperator {
     Identical,
 }
 
-/// Import kinds for namespaces
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImportKind {
     /// ::*
@@ -53,11 +53,30 @@ pub enum ImportKind {
     AllRecursive,
 }
 
-/// Relational comparison operators
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RelationalOperator {
     LessThan,
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InlineExpression {
+    FeatureChain(Box<FeatureChainExpression>),
+    Index(Box<IndexExpression>),
+    Invocation(Box<InvocationExpression>),
+    Literal(Box<LiteralExpression>),
+    MetadataAccess(Box<MetadataAccessExpression>),
+    Null(Box<NullExpression>),
+    Operator(Box<OperatorExpression>),
+    Collect(Box<CollectExpression>),
+    Select(Box<SelectExpression>),
+    FeatureReference(Box<FeatureReferenceExpression>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NonOwnerType {
+    Membership(Box<Membership>),
+    Annotation(Box<Annotation>),
 }

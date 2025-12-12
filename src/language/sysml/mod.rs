@@ -1,4 +1,2 @@
-// SysML v2 Language Module
-
-pub mod interfaces;
-pub mod types;
+pub mod ast;
+pub mod model;
