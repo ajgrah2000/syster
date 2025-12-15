@@ -47,6 +47,7 @@ pub mod import_extractor;
 pub mod resolver;
 pub mod symbol_table;
 pub mod workspace;
+pub mod workspace_events;
 
 pub use analyzer::{AnalysisContext, SemanticAnalyzer};
 pub use dependency_graph::DependencyGraph;

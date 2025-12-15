@@ -430,3 +430,204 @@ fn test_remove_file_clears_dependencies() {
     let imports_after = workspace.get_file_imports(&path);
     assert_eq!(imports_after.len(), 0);
 }
+
+#[test]
+fn test_subscribe_to_file_added() {
+    use crate::semantic::workspace_events::WorkspaceEvent;
+    use std::sync::{Arc, Mutex};
+
+    let mut workspace = Workspace::new();
+    let events_received = Arc::new(Mutex::new(Vec::new()));
+    let events_clone = events_received.clone();
+
+    workspace.subscribe(move |event, _workspace| {
+        events_clone.lock().unwrap().push(event.clone());
+    });
+
+    let path = PathBuf::from("test.sysml");
+    let file = SysMLFile {
+        namespace: None,
+        elements: vec![],
+    };
+
+    workspace.add_file(path.clone(), file);
+
+    let events = events_received.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0], WorkspaceEvent::FileAdded { path });
+}
+
+#[test]
+fn test_subscribe_to_file_updated() {
+    use crate::semantic::workspace_events::WorkspaceEvent;
+    use std::sync::{Arc, Mutex};
+
+    let mut workspace = Workspace::new();
+    let path = PathBuf::from("test.sysml");
+
+    // Add file first
+    workspace.add_file(
+        path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    let events_received = Arc::new(Mutex::new(Vec::new()));
+    let events_clone = events_received.clone();
+
+    workspace.subscribe(move |event, _workspace| {
+        events_clone.lock().unwrap().push(event.clone());
+    });
+
+    // Update the file
+    workspace.update_file(
+        &path,
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    let events = events_received.lock().unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0], WorkspaceEvent::FileUpdated { path });
+}
+
+#[test]
+fn test_invalidate_on_update() {
+    let mut workspace = Workspace::new();
+    workspace.enable_auto_invalidation();
+
+    let path = PathBuf::from("test.sysml");
+    workspace.add_file(
+        path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // Populate the file
+    workspace.populate_file(&path);
+    assert!(workspace.get_file(&path).unwrap().is_populated());
+
+    // Update the file - should trigger invalidation
+    workspace.update_file(
+        &path,
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // File should now be unpopulated
+    assert!(!workspace.get_file(&path).unwrap().is_populated());
+}
+#[test]
+fn test_invalidate_dependent_files() {
+    let mut workspace = Workspace::new();
+    workspace.enable_auto_invalidation();
+
+    let base_path = PathBuf::from("base.sysml");
+    let app_path = PathBuf::from("app.sysml"); // Add base file
+    workspace.add_file(
+        base_path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // Add app file
+    workspace.add_file(
+        app_path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // Set up dependency: app imports base
+    workspace
+        .dependency_graph_mut()
+        .add_dependency(&app_path, &base_path);
+
+    // Populate both files
+    workspace.populate_file(&base_path);
+    workspace.populate_file(&app_path);
+    assert!(workspace.get_file(&base_path).unwrap().is_populated());
+    assert!(workspace.get_file(&app_path).unwrap().is_populated());
+
+    // Update base - should invalidate app too
+    workspace.update_file(
+        &base_path,
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // Both files should be unpopulated
+    assert!(!workspace.get_file(&base_path).unwrap().is_populated());
+    assert!(!workspace.get_file(&app_path).unwrap().is_populated());
+}
+
+#[test]
+fn test_invalidate_transitive_dependencies() {
+    let mut workspace = Workspace::new();
+    workspace.enable_auto_invalidation();
+
+    let a_path = PathBuf::from("a.sysml");
+    let b_path = PathBuf::from("b.sysml");
+    let c_path = PathBuf::from("c.sysml"); // Add files
+    workspace.add_file(
+        a_path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+    workspace.add_file(
+        b_path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+    workspace.add_file(
+        c_path.clone(),
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // Set up dependency chain: A -> B -> C
+    workspace
+        .dependency_graph_mut()
+        .add_dependency(&a_path, &b_path);
+    workspace
+        .dependency_graph_mut()
+        .add_dependency(&b_path, &c_path);
+
+    // Populate all files
+    workspace.populate_file(&a_path);
+    workspace.populate_file(&b_path);
+    workspace.populate_file(&c_path);
+
+    // Update C - should invalidate B and A
+    workspace.update_file(
+        &c_path,
+        SysMLFile {
+            namespace: None,
+            elements: vec![],
+        },
+    );
+
+    // All three files should be unpopulated
+    assert!(!workspace.get_file(&c_path).unwrap().is_populated());
+    assert!(!workspace.get_file(&b_path).unwrap().is_populated());
+    assert!(!workspace.get_file(&a_path).unwrap().is_populated());
+}

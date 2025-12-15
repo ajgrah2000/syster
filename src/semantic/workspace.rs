@@ -27,12 +27,18 @@
 //!
 //! let mut workspace = Workspace::new();
 //!
+//! // Enable automatic invalidation for LSP use
+//! workspace.enable_auto_invalidation();
+//!
 //! // Add files
 //! workspace.add_file(PathBuf::from("base.sysml"), parsed_base);
 //! workspace.add_file(PathBuf::from("app.sysml"), parsed_app);
 //!
 //! // Populate symbol table and resolve imports
 //! workspace.populate_all().unwrap();
+//!
+//! // Update a file - dependents automatically invalidated
+//! workspace.update_file(&PathBuf::from("base.sysml"), new_content);
 //!
 //! // Query the model
 //! let symbol = workspace.symbol_table().lookup("App::myCar");
@@ -105,13 +111,27 @@
 //!
 //! After `populate_all()`, `Vehicle` is visible in `App` scope.
 //!
-//! ## Incremental Updates (Future)
+//! ## Incremental Updates
 //!
-//! Currently, the entire workspace is re-populated when files change.
-//! Future work will support incremental updates:
-//! - Re-populate only changed files
-//! - Invalidate dependent imports
-//! - Preserve unchanged symbols
+//! The workspace supports smart invalidation via an event system:
+//!
+//! ```rust
+//! let mut workspace = Workspace::new();
+//! workspace.enable_auto_invalidation();
+//!
+//! // When a file is updated, dependents are automatically marked for re-population
+//! workspace.update_file(&path, new_content);
+//!
+//! // Only re-populate files that need it
+//! for file_path in workspace.file_paths() {
+//!     if !workspace.get_file(file_path).unwrap().is_populated() {
+//!         workspace.populate_file(file_path).unwrap();
+//!     }
+//! }
+//! ```
+//!
+//! This enables efficient incremental analysis for LSP implementations where
+//! only changed files and their dependents need re-analysis.
 //!
 //! ## Performance Considerations
 //!
@@ -127,8 +147,10 @@ use crate::semantic::dependency_graph::DependencyGraph;
 use crate::semantic::graph::RelationshipGraph;
 use crate::semantic::import_extractor::extract_imports;
 use crate::semantic::symbol_table::SymbolTable;
+use crate::semantic::workspace_events::WorkspaceEvent;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 /// Represents a file in the workspace with its path and parsed content
 #[derive(Debug)]
@@ -176,8 +198,10 @@ impl WorkspaceFile {
     }
 }
 
+/// Type alias for event listener callbacks
+pub type EventListener = Arc<dyn Fn(&WorkspaceEvent, &mut Workspace) + Send + Sync>;
+
 /// A workspace manages multiple SysML files with a shared symbol table and relationship graph
-#[derive(Debug)]
 pub struct Workspace {
     files: HashMap<PathBuf, WorkspaceFile>,
     symbol_table: SymbolTable,
@@ -186,6 +210,7 @@ pub struct Workspace {
     file_imports: HashMap<PathBuf, Vec<String>>,
     stdlib_loaded: bool,
     symbol_index: HashMap<String, Vec<usize>>,
+    event_listeners: Vec<EventListener>,
 }
 
 impl Workspace {
@@ -199,6 +224,7 @@ impl Workspace {
             file_imports: HashMap::new(),
             stdlib_loaded: false,
             symbol_index: HashMap::new(),
+            event_listeners: Vec::new(),
         }
     }
 
@@ -230,7 +256,10 @@ impl Workspace {
         self.file_imports.insert(path.clone(), imports);
 
         let file = WorkspaceFile::new(path.clone(), content);
-        self.files.insert(path, file);
+        self.files.insert(path.clone(), file);
+
+        // Emit event
+        self.emit_event(WorkspaceEvent::FileAdded { path });
     }
 
     /// Gets a reference to a file in the workspace
@@ -241,8 +270,17 @@ impl Workspace {
     /// Updates an existing file's content (for LSP document sync)
     ///
     /// Returns true if the file was found and updated, false otherwise.
-    /// The file will need to be re-populated after this call.
+    /// Emits a FileUpdated event that listeners can use for invalidation.
     pub fn update_file(&mut self, path: &PathBuf, content: SysMLFile) -> bool {
+        // Check if file exists first
+        if !self.files.contains_key(path) {
+            return false;
+        }
+
+        // Emit event BEFORE clearing dependencies so listeners can query the graph
+        self.emit_event(WorkspaceEvent::FileUpdated { path: path.clone() });
+
+        // Now update the file
         if let Some(file) = self.files.get_mut(path) {
             // Clear old dependencies
             self.dependency_graph.remove_file(path);
@@ -263,9 +301,15 @@ impl Workspace {
     /// Returns true if the file was found and removed, false otherwise.
     /// Note: This does not remove symbols from the symbol table - use `repopulate_all()` after.
     pub fn remove_file(&mut self, path: &PathBuf) -> bool {
-        self.dependency_graph.remove_file(path);
-        self.file_imports.remove(path);
-        self.files.remove(path).is_some()
+        let existed = self.files.remove(path).is_some();
+        if existed {
+            self.dependency_graph.remove_file(path);
+            self.file_imports.remove(path);
+
+            // Emit event
+            self.emit_event(WorkspaceEvent::FileRemoved { path: path.clone() });
+        }
+        existed
     }
 
     /// Populates the symbol table and relationship graph for all files in the workspace
@@ -376,6 +420,11 @@ impl Workspace {
         &self.dependency_graph
     }
 
+    /// Returns a mutable reference to the dependency graph
+    pub fn dependency_graph_mut(&mut self) -> &mut DependencyGraph {
+        &mut self.dependency_graph
+    }
+
     /// Returns the list of import paths for a file
     pub fn get_file_imports(&self, path: &PathBuf) -> Vec<String> {
         self.file_imports.get(path).cloned().unwrap_or_default()
@@ -384,6 +433,87 @@ impl Workspace {
     /// Returns the list of files that depend on the given file
     pub fn get_file_dependents(&self, path: &PathBuf) -> Vec<PathBuf> {
         self.dependency_graph.get_dependents(path)
+    }
+
+    /// Enables automatic invalidation of dependent files when files are updated.
+    ///
+    /// When a file is updated, this will automatically mark the file and all files
+    /// that transitively depend on it as unpopulated (needing re-population).
+    ///
+    /// This is the recommended approach for LSP implementations where file changes
+    /// should trigger smart re-analysis of only affected files.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let mut workspace = Workspace::new();
+    /// workspace.enable_auto_invalidation();
+    ///
+    /// // Add files and set up dependencies...
+    ///
+    /// // Update a file - dependents automatically invalidated
+    /// workspace.update_file(&path, new_content);
+    /// ```
+    pub fn enable_auto_invalidation(&mut self) {
+        self.subscribe(|event, workspace| {
+            if let WorkspaceEvent::FileUpdated { path } = event {
+                // Invalidate the file itself and all its dependents
+                let mut to_invalidate = vec![path.clone()];
+                to_invalidate.extend(workspace.dependency_graph().get_all_affected(path));
+
+                for file_path in to_invalidate {
+                    workspace.mark_file_unpopulated(&file_path);
+                }
+            }
+        });
+    }
+
+    /// Subscribes a listener to workspace events
+    ///
+    /// The listener will be called whenever files are added, updated, or removed.
+    /// Use this for custom side effects beyond the standard auto-invalidation.
+    ///
+    /// For most use cases, prefer `enable_auto_invalidation()` instead.
+    ///
+    /// # Example
+    /// ```ignore
+    /// workspace.subscribe(|event, workspace| {
+    ///     match event {
+    ///         WorkspaceEvent::FileAdded { path } => {
+    ///             println!("File added: {:?}", path);
+    ///         }
+    ///         _ => {}
+    ///     }
+    /// });
+    /// ```
+    pub fn subscribe<F>(&mut self, listener: F)
+    where
+        F: Fn(&WorkspaceEvent, &mut Workspace) + Send + Sync + 'static,
+    {
+        self.event_listeners.push(Arc::new(listener));
+    }
+
+    /// Marks a file as unpopulated (needing re-population)
+    ///
+    /// This is typically called automatically by event listeners when using
+    /// `enable_auto_invalidation()`. You can also call it manually for custom
+    /// invalidation logic.
+    pub fn mark_file_unpopulated(&mut self, path: &PathBuf) {
+        if let Some(file) = self.files.get_mut(path) {
+            file.set_populated(false);
+        }
+    }
+
+    /// Emits an event to all registered listeners
+    ///
+    /// Note: This temporarily takes ownership to avoid borrow checker issues.
+    /// Listeners get mutable access to workspace for invalidation.
+    fn emit_event(&mut self, event: WorkspaceEvent) {
+        // Clone listeners to avoid borrow issues
+        let listeners: Vec<_> = self.event_listeners.iter().cloned().collect();
+
+        for listener in listeners {
+            listener(&event, self);
+        }
     }
 }
 
