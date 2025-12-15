@@ -2,9 +2,11 @@
 #![allow(clippy::panic)]
 
 use super::*;
+use crate::language::sysml::validator::SysMLRelationshipValidator;
 use crate::semantic::RelationshipGraph;
 use crate::semantic::SemanticErrorKind;
 use crate::semantic::symbol_table::Symbol;
+use std::sync::Arc;
 
 #[test]
 fn test_analyzer_creation() {
@@ -1830,7 +1832,8 @@ fn test_satisfy_relationship_validation_invalid_target() {
     // Invalid satisfy relationship - targeting a part instead of requirement
     graph.add_one_to_many("satisfy", "MyCase".to_string(), "Vehicle".to_string());
 
-    let analyzer = SemanticAnalyzer::with_symbol_table_and_relationships(table, graph);
+    let validator = Arc::new(SysMLRelationshipValidator::new());
+    let analyzer = SemanticAnalyzer::with_validator(table, graph, validator);
     let result = analyzer.analyze();
 
     assert!(result.is_err());
@@ -1924,7 +1927,8 @@ fn test_perform_relationship_invalid_target() {
     // Invalid perform relationship - targeting a part instead of action
     graph.add_one_to_many("perform", "Robot".to_string(), "Tool".to_string());
 
-    let analyzer = SemanticAnalyzer::with_symbol_table_and_relationships(table, graph);
+    let validator = Arc::new(SysMLRelationshipValidator::new());
+    let analyzer = SemanticAnalyzer::with_validator(table, graph, validator);
     let result = analyzer.analyze();
 
     assert!(result.is_err());
