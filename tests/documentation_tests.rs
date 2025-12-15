@@ -3,6 +3,12 @@
 //! These tests ensure that documentation stays synchronized with the codebase.
 //! They check that examples compile and that documented features actually exist.
 
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(unused_assignments)]
+#![allow(unused_mut)]
+
 use std::path::PathBuf;
 use syster::language::sysml::syntax::SysMLFile;
 use syster::semantic::{NameResolver, RelationshipGraph, SemanticAnalyzer, SymbolTable, Workspace};
@@ -17,6 +23,10 @@ fn test_architecture_examples_compile() {
     // For now, test with existing types
     let mut workspace = Workspace::new();
     // This should work as documented
+    assert!(
+        !workspace.has_stdlib(),
+        "New workspace should not have stdlib loaded"
+    );
 }
 
 /// Verify workspace APIs documented in ARCHITECTURE.md exist
@@ -24,19 +34,31 @@ fn test_architecture_examples_compile() {
 fn test_workspace_api_exists() {
     let workspace = Workspace::new();
 
-    // Verify APIs exist as documented
-    let _symbol_table = workspace.symbol_table();
+    // Verify APIs exist as documented and return correct types
+    let symbol_table = workspace.symbol_table();
     let _relationship_graph = workspace.relationship_graph();
+
+    // Verify they work correctly
+    assert!(
+        symbol_table.lookup("NonExistent").is_none(),
+        "Empty workspace should have no symbols"
+    );
 }
 
 /// Verify type aliases mentioned in documentation exist
 #[test]
 fn test_documented_type_aliases_exist() {
     // These should compile if type aliases are properly exported
-    let _qname: syster::semantic::QualifiedName = "Package::Element".to_string();
-    let _simple: syster::semantic::SimpleName = "Element".to_string();
-    let _scope: syster::semantic::ScopeId = 0;
-    let _path: syster::semantic::SourceFilePath = "file.sysml".to_string();
+    let qname: syster::semantic::QualifiedName = "Package::Element".to_string();
+    let simple: syster::semantic::SimpleName = "Element".to_string();
+    let scope: syster::semantic::ScopeId = 0;
+    let path: syster::semantic::SourceFilePath = "file.sysml".to_string();
+
+    // Verify the types work as expected
+    assert_eq!(qname, "Package::Element");
+    assert_eq!(simple, "Element");
+    assert_eq!(scope, 0);
+    assert_eq!(path, "file.sysml");
 }
 
 /// Verify documented module structure matches reality
@@ -64,14 +86,14 @@ fn test_symbol_enum_variants_documented() {
     use syster::semantic::symbol_table::Symbol;
 
     // Create examples of each documented variant
-    let _package = Symbol::Package {
+    let package = Symbol::Package {
         name: "Test".to_string(),
         qualified_name: "Test".to_string(),
         scope_id: 0,
         source_file: None,
     };
 
-    let _classifier = Symbol::Classifier {
+    let classifier = Symbol::Classifier {
         name: "Test".to_string(),
         qualified_name: "Test".to_string(),
         kind: "class".to_string(),
@@ -79,6 +101,16 @@ fn test_symbol_enum_variants_documented() {
         scope_id: 0,
         source_file: None,
     };
+
+    // Verify symbol variants can be matched
+    assert!(
+        matches!(package, Symbol::Package { .. }),
+        "Should match Package variant"
+    );
+    assert!(
+        matches!(classifier, Symbol::Classifier { .. }),
+        "Should match Classifier variant"
+    );
 
     // If any variant changes, this test breaks and reminds us to update docs
 }
@@ -90,12 +122,34 @@ fn test_relationship_graph_api_matches_docs() {
 
     let mut graph = OneToManyGraph::new();
 
-    // These methods are documented - ensure they exist
+    // These methods are documented - ensure they exist and work correctly
     graph.add("Vehicle".to_string(), "Car".to_string());
-    let _targets = graph.get_targets("Vehicle");
-    let _sources = graph.get_sources("Car");
-    let _has_path = graph.has_path("Car", "Vehicle");
-    let _cycles = graph.find_cycles();
+
+    let targets = graph.get_targets("Vehicle");
+    assert_eq!(
+        targets,
+        Some(["Car".to_string()].as_slice()),
+        "Vehicle should have Car as target"
+    );
+
+    let sources = graph.get_sources("Car");
+    assert_eq!(
+        sources,
+        vec![&"Vehicle".to_string()],
+        "Car should have Vehicle as source"
+    );
+
+    assert!(
+        graph.has_path("Vehicle", "Car"),
+        "Should have path from Vehicle to Car"
+    );
+    assert!(
+        !graph.has_path("Car", "Vehicle"),
+        "Should not have reverse path without adding it"
+    );
+
+    let cycles = graph.find_cycles();
+    assert!(cycles.is_empty(), "No cycles should exist in simple graph");
 }
 
 /// Verify the three-phase pipeline terminology is accurate

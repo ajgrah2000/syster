@@ -149,7 +149,9 @@ terminate_action_usage = { "terminate" ~ identifier ~ ";" }
 
 // Port Definitions and Conjugation
 
-conjugated_port_definition = { "port" ~ "def" ~ "~" ~ identifier ~ ";" }
+conjugated_port_definition = {
+    occurrence_definition_prefix ~ "port" ~ "def" ~ "~" ~ definition_declaration ~ definition_body
+}
 port_conjugation = { "conjugate" ~ "~" ~ identifier ~ ";" }
 conjugated_port_typing = { "port" ~ identifier ~ ":" ~ "~" ~ identifier ~ ";" }
 life_class = { "life" ~ "class" ~ identifier ~ ";" }
@@ -783,8 +785,13 @@ interface_end = {
     owned_cross_multiplicity_member? ~ (identifier ~ references_keyword)? ~ owned_reference_subsetting
 }
 
-allocation_definition = { "allocation" ~ "def" ~ identifier ~ ";" }
-port_definition = { "port" ~ "def" ~ identifier ~ ";" }
+allocation_definition = {
+    occurrence_definition_prefix ~ "allocation" ~ "def" ~ definition_suffix
+}
+
+port_definition = {
+    occurrence_definition_prefix ~ "port" ~ "def" ~ definition_declaration ~ definition_body
+}
 
 // Action keywords
 action_keyword = { "action" }
@@ -850,8 +857,7 @@ entry_transition_member = {
 }
 
 state_action_usage = {
-    empty_action_usage ~ ";"
-    | performed_action_usage ~ action_body
+    "action" ~ (identifier ~ ";" | usage_declaration? ~ action_body)
 }
 
 empty_action_usage = {
@@ -1312,7 +1318,7 @@ analysis_keyword = { "analysis" }
 
 // Analysis Case Definition
 analysis_case_definition = {
-    occurrence_definition_prefix ~ analysis_keyword ~ case_def_keyword ~ definition_declaration ~ case_body
+    occurrence_definition_prefix ~ analysis_keyword ~ (case_def_keyword | "def") ~ definition_declaration ~ case_body
 }
 
 // Verification Case Keywords
@@ -1320,7 +1326,7 @@ verification_keyword = { "verification" }
 
 // Verification Case Definition
 verification_case_definition = {
-    occurrence_definition_prefix ~ verification_keyword ~ case_def_keyword ~ definition_declaration ~ case_body
+    occurrence_definition_prefix ~ verification_keyword ~ (case_def_keyword | "def") ~ definition_declaration ~ case_body
 }
 
 // View Keywords
@@ -1329,7 +1335,7 @@ view_def_keyword = { view_keyword ~ "def" }
 
 // View Definition
 view_definition = {
-    occurrence_definition_prefix ~ view_def_keyword ~ definition_declaration ~ view_definition_body
+    occurrence_definition_prefix ~ view_def_keyword ~ ("<" ~ identifier ~ ">")? ~ definition_declaration ~ view_definition_body
 }
 
 view_definition_body = {
@@ -1398,6 +1404,7 @@ feature_direction_kind = @{ "inout" | "in" | "out" }
 ref_prefix = {
     feature_direction_kind?
     ~ basic_definition_prefix?
+    ~ ("constant")?
     ~ readonly?
     ~ derived?
 }
@@ -1685,7 +1692,9 @@ empty_source_end_member = { empty_source_end }
 
 empty_source_end = { "" }
 
-allocation_usage = { "allocation" ~ identifier ~ ";" }
+allocation_usage = {
+    occurrence_usage_prefix ~ "allocation" ~ usage_declaration? ~ usage_body
+}
 
 // Messages
 message_keyword = { "message" }
@@ -1889,7 +1898,9 @@ verification_case_usage = {
     occurrence_usage_prefix ~ verification_keyword ~ action_usage_declaration ~ case_body
 }
 
-use_case_usage = { "use" ~ "case" ~ identifier ~ ";" }
+use_case_usage = {
+    occurrence_usage_prefix ~ "use" ~ "case" ~ usage_declaration? ~ usage_body
+}
 
 // Viewpoint Usage
 viewpoint_usage_keyword = { viewpoint_keyword }
@@ -1989,7 +2000,7 @@ subclassification_part = {
 
 owned_subclassification = { classifier_reference }
 
-classifier_reference = { identifier | quoted_name }
+classifier_reference = { qualified_name | identifier | quoted_name }
 
 // Features
 
@@ -2073,7 +2084,7 @@ owned_redefinition = {
 }
 
 // Feature references and chains (matching KerML structure)
-feature_reference = { identifier | quoted_name }
+feature_reference = { qualified_name | identifier | quoted_name }
 
 owned_feature_chain = { identifier ~ ("." ~ identifier)+ }
 
@@ -2092,10 +2103,10 @@ bound = { number_literal | "*" }
 number_literal = @{ ASCII_DIGIT+ }
 
 multiplicity_properties = {
-    "ordered"
-    | "nonunique"
-    | "ordered" ~ "nonunique"
+    "ordered" ~ "nonunique"
     | "nonunique" ~ "ordered"
+    | "ordered"
+    | "nonunique"
 }
 
 // Model Entry Point
@@ -2151,6 +2162,7 @@ metadata_definition = {
     ~ prefix_metadata?
     ~ "metadata"
     ~ "def"
+    ~ ("<" ~ identifier ~ ">")?
     ~ definition_suffix
 }
 

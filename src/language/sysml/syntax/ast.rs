@@ -81,7 +81,7 @@ fn find_reference(pair: &pest::iterators::Pair<Rule>) -> Option<String> {
         | Rule::quoted_name
         | Rule::feature_reference
         | Rule::classifier_reference => {
-            return Some(pair.as_str().to_string());
+            return Some(pair.as_str().trim().to_string());
         }
         _ => {
             for inner in pair.clone().into_inner() {

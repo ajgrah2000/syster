@@ -14,6 +14,15 @@ impl WorkspaceLoader {
         Self
     }
 
+    /// Loads a single SysML or KerML file into the workspace.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The file cannot be read
+    /// - The file has an invalid extension
+    /// - The file fails to parse
+    /// - AST construction fails
     pub fn load_file<P: Into<PathBuf>>(
         &self,
         path: P,
@@ -23,6 +32,14 @@ impl WorkspaceLoader {
         self.load_file_internal(&path, workspace)
     }
 
+    /// Loads all SysML and KerML files from a directory recursively.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The directory does not exist or is not a directory
+    /// - Any file in the directory tree cannot be read
+    /// - Any file fails to parse
     pub fn load_directory<P: Into<PathBuf>>(
         &self,
         path: P,
@@ -32,10 +49,10 @@ impl WorkspaceLoader {
         if !path.exists() || !path.is_dir() {
             return Err(format!("Directory not found: {}", path.display()));
         }
-        self.load_directory_internal(&path, workspace)
+        self.load_directory_recursive(&path, workspace)
     }
 
-    fn load_directory_internal(
+    fn load_directory_recursive(
         &self,
         dir: &PathBuf,
         workspace: &mut Workspace,
@@ -49,7 +66,7 @@ impl WorkspaceLoader {
 
             if path.is_dir() {
                 // Recursively process subdirectories
-                self.load_directory_internal(&path, workspace)?;
+                self.load_directory_recursive(&path, workspace)?;
             } else if path.is_file()
                 && path
                     .extension()
@@ -100,11 +117,4 @@ impl Default for WorkspaceLoader {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_workspace_loader_creation() {
-        let _loader = WorkspaceLoader::new();
-    }
-}
+mod tests;
