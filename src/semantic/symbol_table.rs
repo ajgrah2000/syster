@@ -72,28 +72,22 @@
 //! let mut table = SymbolTable::new();
 //!
 //! // Insert a symbol
-//! table.insert(Symbol::Package {
-//!     name: "Automotive".to_string(),
-//!     qualified_name: "Automotive".to_string(),
-//!     scope_id: 0,
-//!     source_file: Some("auto.sysml".to_string()),
-//! });
+//! table.insert(
+//!     "Automotive".to_string(),
+//!     Symbol::Package {
+//!         name: "Automotive".to_string(),
+//!         qualified_name: "Automotive".to_string(),
+//!         scope_id: 0,
+//!         source_file: Some("auto.sysml".to_string()),
+//!     },
+//! ).ok();
 //!
-//! // Lookup by qualified name
+//! // Lookup by name
 //! let symbol = table.lookup("Automotive");
 //! ```
-//!
-//! ## Performance
-//!
-//! - **Insert**: O(1) amortized (HashMap-backed)
-//! - **Lookup**: O(1) average case
-//! - **Scope lookup**: O(d) where d = scope depth
-//!
-//! ## Thread Safety
-//!
-//! `SymbolTable` is not `Send` or `Sync` by default. For concurrent access,
-//! wrap in `Arc<RwLock<SymbolTable>>`.
-
+use crate::core::events::EventEmitter;
+use crate::core::operation::{EventBus, OperationResult};
+use crate::semantic::events::SymbolTableEvent;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -236,6 +230,7 @@ pub struct SymbolTable {
     scopes: Vec<Scope>,
     current_scope: usize,
     current_file: Option<String>,
+    pub events: EventEmitter<SymbolTableEvent, SymbolTable>,
 }
 
 impl SymbolTable {
@@ -244,12 +239,18 @@ impl SymbolTable {
             scopes: vec![Scope::new(None)],
             current_scope: 0,
             current_file: None,
+            events: EventEmitter::new(),
         }
     }
 
     /// Sets the current source file context for subsequently created symbols
     pub fn set_current_file(&mut self, file_path: Option<String>) {
-        self.current_file = file_path;
+        let _ = {
+            self.current_file = file_path.clone();
+            let event = file_path.map(|path| SymbolTableEvent::FileChanged { file_path: path });
+            OperationResult::<(), String, SymbolTableEvent>::success((), event)
+        }
+        .publish(self);
     }
 
     /// Gets the current source file context
@@ -278,25 +279,46 @@ impl SymbolTable {
     ///
     /// Returns an error if a symbol with the same name already exists in the current scope.
     pub fn insert(&mut self, name: String, symbol: Symbol) -> Result<(), String> {
-        let scope = &mut self.scopes[self.current_scope];
-        if scope.symbols.contains_key(&name) {
-            return Err(format!("Symbol '{}' already defined in this scope", name));
+        {
+            let qualified_name = symbol.qualified_name().to_string();
+            let symbol_id = self.scopes.iter().map(|s| s.symbols.len()).sum::<usize>();
+
+            let scope = &mut self.scopes[self.current_scope];
+            if scope.symbols.contains_key(&name) {
+                return OperationResult::failure(format!(
+                    "Symbol '{}' already defined in this scope",
+                    name
+                ))
+                .publish(self);
+            }
+
+            scope.symbols.insert(name, symbol);
+
+            let event = SymbolTableEvent::SymbolInserted {
+                qualified_name,
+                symbol_id,
+            };
+            OperationResult::success((), Some(event))
         }
-        scope.symbols.insert(name, symbol);
-        Ok(())
+        .publish(self)
     }
 
     /// Adds an import to the current scope
     pub fn add_import(&mut self, path: String, is_recursive: bool) {
-        let is_namespace = path.ends_with("::*") || path.ends_with("::**");
-        let import = Import {
-            path,
-            is_recursive,
-            is_namespace,
-        };
-        self.scopes[self.current_scope].imports.push(import);
-    }
+        let _ = {
+            let is_namespace = path.ends_with("::*") || path.ends_with("::**");
+            let import = Import {
+                path: path.clone(),
+                is_recursive,
+                is_namespace,
+            };
+            self.scopes[self.current_scope].imports.push(import);
 
+            let event = SymbolTableEvent::ImportAdded { import_path: path };
+            OperationResult::<(), String, SymbolTableEvent>::success((), Some(event))
+        }
+        .publish(self);
+    }
     pub fn lookup(&self, name: &str) -> Option<&Symbol> {
         let mut current = self.current_scope;
         loop {
@@ -440,6 +462,13 @@ impl SymbolTable {
 impl Default for SymbolTable {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl EventBus<SymbolTableEvent> for SymbolTable {
+    fn publish(&mut self, event: &SymbolTableEvent) {
+        let emitter = std::mem::take(&mut self.events);
+        self.events = emitter.emit(event.clone(), self);
     }
 }
 

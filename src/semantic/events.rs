@@ -52,6 +52,32 @@ pub enum DependencyEvent {
 
 impl Event for DependencyEvent {}
 
+/// Events emitted by the symbol table during symbol operations
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SymbolTableEvent {
+    /// A symbol was inserted into the symbol table
+    SymbolInserted {
+        /// The qualified name of the symbol
+        qualified_name: String,
+        /// The unique identifier of the symbol
+        symbol_id: usize,
+    },
+
+    /// An import was added to a file's import list
+    ImportAdded {
+        /// The import path that was added
+        import_path: String,
+    },
+
+    /// The current file context was changed
+    FileChanged {
+        /// The path of the file that is now current
+        file_path: String,
+    },
+}
+
+impl Event for SymbolTableEvent {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -106,6 +132,38 @@ mod tests {
         let event2 = DependencyEvent::DependencyAdded {
             from: from.clone(),
             to: to.clone(),
+        };
+
+        assert_eq!(event1, event2);
+    }
+
+    #[test]
+    fn test_symbol_table_event_creation() {
+        let inserted = SymbolTableEvent::SymbolInserted {
+            qualified_name: "Package::Vehicle".to_string(),
+            symbol_id: 42,
+        };
+        let import_added = SymbolTableEvent::ImportAdded {
+            import_path: "Base::*".to_string(),
+        };
+        let file_changed = SymbolTableEvent::FileChanged {
+            file_path: "test.sysml".to_string(),
+        };
+
+        assert!(matches!(inserted, SymbolTableEvent::SymbolInserted { .. }));
+        assert!(matches!(import_added, SymbolTableEvent::ImportAdded { .. }));
+        assert!(matches!(file_changed, SymbolTableEvent::FileChanged { .. }));
+    }
+
+    #[test]
+    fn test_symbol_table_event_equality() {
+        let event1 = SymbolTableEvent::SymbolInserted {
+            qualified_name: "Package::Vehicle".to_string(),
+            symbol_id: 42,
+        };
+        let event2 = SymbolTableEvent::SymbolInserted {
+            qualified_name: "Package::Vehicle".to_string(),
+            symbol_id: 42,
         };
 
         assert_eq!(event1, event2);

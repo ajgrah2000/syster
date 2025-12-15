@@ -5,8 +5,8 @@
 //! ## Design
 //!
 //! - **Event**: Any type implementing the `Event` trait (typically enums)
-//! - **EventEmitter<T>**: Manages listeners and emits events of type T
-//! - **EventListener<T>**: Callback function that responds to events
+//! - **EventEmitter<T, Context>**: Manages listeners and emits events of type T
+//! - **EventListener<T, Context>**: Callback function that responds to events
 //!
 //! ## Usage Example
 //!
@@ -23,7 +23,7 @@
 //!
 //! struct MyComponent {
 //!     items: Vec<u32>,
-//!     events: EventEmitter<MyEvent>,
+//!     events: EventEmitter<MyEvent, MyComponent>,
 //! }
 //!
 //! impl MyComponent {
@@ -43,7 +43,8 @@
 //!
 //!     fn add_item(&mut self, id: u32) {
 //!         self.items.push(id);
-//!         self.events.emit(MyEvent::ItemAdded { id }, self);
+//!         let events = std::mem::take(&mut self.events);
+//!         self.events = events.emit(MyEvent::ItemAdded { id }, self);
 //!     }
 //! }
 //! ```
@@ -96,14 +97,6 @@ impl<T: Event, Context> EventEmitter<T, Context> {
     /// Subscribes a new listener to this event emitter
     ///
     /// The listener will be called whenever `emit()` is invoked.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// emitter.subscribe(|event, context| {
-    ///     println!("Event received: {:?}", event);
-    /// });
-    /// ```
     pub fn subscribe<F>(&mut self, listener: F)
     where
         F: Fn(&T, &mut Context) + Send + Sync + 'static,
@@ -118,14 +111,6 @@ impl<T: Event, Context> EventEmitter<T, Context> {
     ///
     /// Note: This consumes the event emitter temporarily to avoid borrow checker issues.
     /// The emitter must be taken out, used to emit, then put back.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// let emitter = std::mem::take(&mut self.emitter);
-    /// emitter.emit(MyEvent::ItemAdded { id: 42 }, self);
-    /// self.emitter = emitter;
-    /// ```
     pub fn emit(self, event: T, context: &mut Context) -> Self {
         // Clone listeners to avoid borrow issues
         let listeners: Vec<_> = self.listeners.iter().cloned().collect();

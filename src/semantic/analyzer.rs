@@ -71,19 +71,9 @@
 //!
 //! ## Error Handling
 //!
-//! Errors are collected (not thrown) to report multiple issues at once:
-//!
-//! ```rust
-//! fn validate_something(&self, ctx: &mut AnalysisContext) {
-//!     if condition_violated {
-//!         ctx.add_error(SemanticError::new(
-//!             SemanticErrorKind::SomeViolation,
-//!             location,
-//!         ));
-//!     }
-//!     // Continue checking (don't return early)
-//! }
-//! ```
+//! Errors are collected (not thrown) to report multiple issues at once.
+//! Validation passes should continue checking even after finding errors
+//! to report as many issues as possible in a single analysis run.
 //!
 //! ## Extensibility
 //!

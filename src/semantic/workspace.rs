@@ -23,6 +23,7 @@
 //!
 //! ```rust
 //! use syster::semantic::Workspace;
+//! use syster::language::sysml::syntax::SysMLFile;
 //! use std::path::PathBuf;
 //!
 //! let mut workspace = Workspace::new();
@@ -30,14 +31,17 @@
 //! // Enable automatic invalidation for LSP use
 //! workspace.enable_auto_invalidation();
 //!
-//! // Add files
+//! // Add files (with parsed content)
+//! let parsed_base = SysMLFile { namespace: None, elements: vec![] };
+//! let parsed_app = SysMLFile { namespace: None, elements: vec![] };
 //! workspace.add_file(PathBuf::from("base.sysml"), parsed_base);
 //! workspace.add_file(PathBuf::from("app.sysml"), parsed_app);
 //!
 //! // Populate symbol table and resolve imports
-//! workspace.populate_all().unwrap();
+//! workspace.populate_all().ok();
 //!
 //! // Update a file - dependents automatically invalidated
+//! let new_content = SysMLFile { namespace: None, elements: vec![] };
 //! workspace.update_file(&PathBuf::from("base.sysml"), new_content);
 //!
 //! // Query the model
@@ -49,6 +53,8 @@
 //! The workspace can optionally load the SysML standard library:
 //!
 //! ```rust
+//! use syster::semantic::Workspace;
+//!
 //! // Create workspace with stdlib
 //! let mut workspace = Workspace::with_stdlib();
 //!
@@ -71,6 +77,9 @@
 //! Files are indexed by `PathBuf` and stored as `WorkspaceFile` entries:
 //!
 //! ```rust
+//! use std::path::PathBuf;
+//! use syster::language::sysml::syntax::SysMLFile;
+//!
 //! pub struct WorkspaceFile {
 //!     path: PathBuf,         // File path
 //!     content: SysMLFile,    // Parsed AST
@@ -116,16 +125,26 @@
 //! The workspace supports smart invalidation via an event system:
 //!
 //! ```rust
+//! use syster::semantic::Workspace;
+//! use syster::language::sysml::syntax::SysMLFile;
+//! use std::path::PathBuf;
+//!
 //! let mut workspace = Workspace::new();
 //! workspace.enable_auto_invalidation();
 //!
-//! // When a file is updated, dependents are automatically marked for re-population
+//! let path = PathBuf::from("file.sysml");
+//! let content = SysMLFile { namespace: None, elements: vec![] };
+//! workspace.add_file(path.clone(), content);
+//!
+//! // When file changes, dependents are automatically marked
+//! let new_content = SysMLFile { namespace: None, elements: vec![] };
 //! workspace.update_file(&path, new_content);
 //!
 //! // Only re-populate files that need it
-//! for file_path in workspace.file_paths() {
-//!     if !workspace.get_file(file_path).unwrap().is_populated() {
-//!         workspace.populate_file(file_path).unwrap();
+//! let file_paths: Vec<_> = workspace.file_paths().cloned().collect();
+//! for file_path in file_paths {
+//!     if !workspace.get_file(&file_path).unwrap().is_populated() {
+//!         workspace.populate_file(&file_path).unwrap();
 //!     }
 //! }
 //! ```
@@ -343,15 +362,6 @@ impl Workspace {
     ///
     /// Returns an error if any unpopulated file fails to populate due to invalid syntax
     /// or semantic errors in the SysML content.
-    ///
-    /// # Example
-    ///
-    /// ```ignore
-    /// workspace.enable_auto_invalidation();
-    /// workspace.update_file(&path, new_content); // Invalidates affected files
-    /// let count = workspace.populate_affected()?; // Only repopulates invalidated files
-    /// println!("Repopulated {} files", count);
-    /// ```
     pub fn populate_affected(&mut self) -> Result<usize, String> {
         // Collect unpopulated files
         let mut unpopulated: Vec<_> = self
@@ -485,17 +495,6 @@ impl Workspace {
     ///
     /// This is the recommended approach for LSP implementations where file changes
     /// should trigger smart re-analysis of only affected files.
-    ///
-    /// # Example
-    /// ```ignore
-    /// let mut workspace = Workspace::new();
-    /// workspace.enable_auto_invalidation();
-    ///
-    /// // Add files and set up dependencies...
-    ///
-    /// // Update a file - dependents automatically invalidated
-    /// workspace.update_file(&path, new_content);
-    /// ```
     pub fn enable_auto_invalidation(&mut self) {
         self.subscribe(|event, workspace| {
             if let WorkspaceEvent::FileUpdated { path } = event {
@@ -516,18 +515,6 @@ impl Workspace {
     /// Use this for custom side effects beyond the standard auto-invalidation.
     ///
     /// For most use cases, prefer `enable_auto_invalidation()` instead.
-    ///
-    /// # Example
-    /// ```ignore
-    /// workspace.subscribe(|event, workspace| {
-    ///     match event {
-    ///         WorkspaceEvent::FileAdded { path } => {
-    ///             println!("File added: {:?}", path);
-    ///         }
-    ///         _ => {}
-    ///     }
-    /// });
-    /// ```
     pub fn subscribe<F>(&mut self, listener: F)
     where
         F: Fn(&WorkspaceEvent, &mut Workspace) + Send + Sync + 'static,

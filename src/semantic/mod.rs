@@ -24,13 +24,17 @@
 //!
 //! ```rust
 //! use syster::semantic::Workspace;
+//! use syster::language::sysml::syntax::SysMLFile;
+//! use std::path::PathBuf;
 //!
 //! // Create workspace and add files
 //! let mut workspace = Workspace::new();
+//! let path = PathBuf::from("file.sysml");
+//! let parsed_content = SysMLFile { namespace: None, elements: vec![] };
 //! workspace.add_file(path, parsed_content);
 //!
 //! // Populate symbol table and resolve imports
-//! workspace.populate_all().unwrap();
+//! workspace.populate_all().ok();
 //!
 //! // Query the model
 //! let symbol = workspace.symbol_table().lookup("Package::Element");
@@ -53,7 +57,7 @@ pub use analyzer::{AnalysisContext, SemanticAnalyzer};
 pub use dependency_graph::DependencyGraph;
 pub use diagnostic::{Diagnostic, Location as DiagnosticLocation, Position, Range, Severity};
 pub use error::{Location, SemanticError, SemanticErrorKind, SemanticResult};
-pub use events::{DependencyEvent, WorkspaceEvent};
+pub use events::{DependencyEvent, SymbolTableEvent, WorkspaceEvent};
 pub use graph::RelationshipGraph;
 pub use import_extractor::{extract_imports, is_wildcard_import, parse_import_path};
 pub use resolver::NameResolver;
@@ -87,7 +91,7 @@ pub use workspace::Workspace;
 /// use syster::semantic::QualifiedName;
 ///
 /// let qname: QualifiedName = "Package::Element".to_string();
-/// let symbol = symbol_table.lookup(&qname);
+/// // Can be used to look up symbols in a symbol table
 /// ```
 ///
 /// # Invariants
@@ -126,7 +130,8 @@ pub type SimpleName = String;
 /// ```rust
 /// use syster::semantic::ScopeId;
 ///
-/// let scope_id: ScopeId = symbol.scope_id();
+/// let scope_id: ScopeId = 0;
+/// // Can be used to query symbols in a specific scope
 /// ```
 pub type ScopeId = usize;
 
