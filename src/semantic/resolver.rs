@@ -161,12 +161,12 @@ impl<'a> NameResolver<'a> {
                 let qname = self.get_qualified_name(symbol);
 
                 // Check if this symbol is a direct child of prefix
-                if let Some(remainder) = qname.strip_prefix(prefix) {
-                    if let Some(remainder) = remainder.strip_prefix("::") {
-                        // Only include direct children (no nested ::)
-                        if !remainder.contains("::") {
-                            return Some(qname.to_string());
-                        }
+                if let Some(remainder) = qname.strip_prefix(prefix)
+                    && let Some(remainder) = remainder.strip_prefix("::")
+                {
+                    // Only include direct children (no nested ::)
+                    if !remainder.contains("::") {
+                        return Some(qname.to_string());
                     }
                 }
                 None

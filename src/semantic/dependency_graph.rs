@@ -1,31 +1,63 @@
+use crate::core::events::EventEmitter;
+use crate::semantic::events::DependencyEvent;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Tracks import dependencies between files for smart invalidation
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct DependencyGraph {
     // Map from file -> files it depends on (imports)
     dependencies: HashMap<PathBuf, HashSet<PathBuf>>,
     // Map from file -> files that depend on it (reverse index)
     dependents: HashMap<PathBuf, HashSet<PathBuf>>,
+    // Event emitter for dependency changes
+    events: EventEmitter<DependencyEvent, DependencyGraph>,
+}
+
+impl Default for DependencyGraph {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DependencyGraph {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            dependencies: HashMap::new(),
+            dependents: HashMap::new(),
+            events: EventEmitter::new(),
+        }
+    }
+
+    /// Subscribes a listener to dependency graph events
+    pub fn subscribe<F>(&mut self, listener: F)
+    where
+        F: Fn(&DependencyEvent, &mut DependencyGraph) + Send + Sync + 'static,
+    {
+        self.events.subscribe(listener);
     }
 
     /// Adds a dependency: `from` imports `to`
-    pub fn add_dependency(&mut self, from: &PathBuf, to: &PathBuf) {
+    pub fn add_dependency(&mut self, from: &Path, to: &Path) {
         self.dependencies
-            .entry(from.clone())
+            .entry(from.to_path_buf())
             .or_default()
-            .insert(to.clone());
+            .insert(to.to_path_buf());
 
         self.dependents
-            .entry(to.clone())
+            .entry(to.to_path_buf())
             .or_default()
-            .insert(from.clone());
+            .insert(from.to_path_buf());
+
+        // Emit event
+        let events = std::mem::take(&mut self.events);
+        self.events = events.emit(
+            DependencyEvent::DependencyAdded {
+                from: from.to_path_buf(),
+                to: to.to_path_buf(),
+            },
+            self,
+        );
     }
 
     /// Returns all files that `file` directly depends on
@@ -128,6 +160,10 @@ impl DependencyGraph {
                 }
             }
         }
+
+        // Emit event
+        let events = std::mem::take(&mut self.events);
+        self.events = events.emit(DependencyEvent::FileRemoved { path: file.clone() }, self);
     }
 
     /// Returns the total number of tracked dependencies

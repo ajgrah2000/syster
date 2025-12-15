@@ -145,13 +145,12 @@ use crate::core::events::EventEmitter;
 use crate::language::sysml::SymbolTablePopulator;
 use crate::language::sysml::syntax::SysMLFile;
 use crate::semantic::dependency_graph::DependencyGraph;
+use crate::semantic::events::WorkspaceEvent;
 use crate::semantic::graph::RelationshipGraph;
 use crate::semantic::import_extractor::extract_imports;
 use crate::semantic::symbol_table::SymbolTable;
-use crate::semantic::workspace_events::WorkspaceEvent;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 /// Represents a file in the workspace with its path and parsed content
 #[derive(Debug)]
@@ -198,9 +197,6 @@ impl WorkspaceFile {
         self.populated = false; // Need to re-populate after content change
     }
 }
-
-/// Type alias for event listener callbacks
-pub type EventListener = Arc<dyn Fn(&WorkspaceEvent, &mut Workspace) + Send + Sync>;
 
 /// A workspace manages multiple SysML files with a shared symbol table and relationship graph
 pub struct Workspace {
@@ -260,7 +256,7 @@ impl Workspace {
         self.files.insert(path.clone(), file);
 
         // Emit event
-        let events = std::mem::replace(&mut self.events, EventEmitter::new());
+        let events = std::mem::take(&mut self.events);
         self.events = events.emit(WorkspaceEvent::FileAdded { path }, self);
     }
 
@@ -280,7 +276,7 @@ impl Workspace {
         }
 
         // Emit event BEFORE clearing dependencies so listeners can query the graph
-        let events = std::mem::replace(&mut self.events, EventEmitter::new());
+        let events = std::mem::take(&mut self.events);
         self.events = events.emit(WorkspaceEvent::FileUpdated { path: path.clone() }, self);
 
         // Now update the file
@@ -310,7 +306,7 @@ impl Workspace {
             self.file_imports.remove(path);
 
             // Emit event
-            let events = std::mem::replace(&mut self.events, EventEmitter::new());
+            let events = std::mem::take(&mut self.events);
             self.events = events.emit(WorkspaceEvent::FileRemoved { path: path.clone() }, self);
         }
         existed

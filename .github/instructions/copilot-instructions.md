@@ -175,6 +175,24 @@ After each change:
 
 If you answer "no" to any of these, STOP and address it before proceeding.
 
+## Task Completion Workflow - MANDATORY
+
+After completing EACH todo/task, you MUST run:
+
+1. `make run-guidelines` - Validates format, lint, and tests
+2. `git add -A && git commit` - Commits the changes with descriptive message
+
+**This is mandatory after every todo completion.** Do not skip these steps.
+
+Example commit message format:
+```
+feat(component): brief description of what was done
+
+- Detail 1
+- Detail 2
+- Tests: X passing
+```
+
 ## Development Commands
 
 - `cargo test` - Run all tests

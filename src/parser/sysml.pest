@@ -858,6 +858,8 @@ entry_transition_member = {
 
 state_action_usage = {
     "action" ~ (identifier ~ ";" | usage_declaration? ~ action_body)
+    | ";"
+    | qualified_name ~ ";"
 }
 
 empty_action_usage = {

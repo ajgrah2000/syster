@@ -1,5 +1,4 @@
 #![allow(unused_imports)]
-
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use super::WorkspaceLoader;

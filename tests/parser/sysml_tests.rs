@@ -3746,7 +3746,11 @@ fn test_parse_exit_action_kind(#[case] input: &str, #[case] desc: &str) {
 }
 
 #[rstest]
-#[case(";", "empty state action usage")]
+#[case("action entryAction;", "full form with action keyword")]
+#[case("action doAction: Action;", "typed state action usage")]
+#[case("action exercise : Exercise { }", "state action with body")]
+#[case(";", "empty action shorthand")]
+#[case("monitorTemperature;", "reference subsetting shorthand")]
 fn test_parse_state_action_usage(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::state_action_usage, input);
 
@@ -3772,7 +3776,14 @@ fn test_parse_empty_action_usage_state(#[case] input: &str, #[case] desc: &str) 
 }
 
 #[rstest]
-#[case("entry;", "entry action member")]
+#[case("entry action entryAction;", "full form with action keyword")]
+#[case("entry action warmup : WarmUp;", "typed entry action")]
+#[case(
+    "entry action entryAction :>> 'entry';",
+    "entry action with redefinition"
+)]
+#[case("entry;", "empty entry action shorthand")]
+#[case("entry setupSensor;", "entry reference subsetting shorthand")]
 fn test_parse_entry_action_member(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::entry_action_member, input);
 
@@ -3785,7 +3796,12 @@ fn test_parse_entry_action_member(#[case] input: &str, #[case] desc: &str) {
 }
 
 #[rstest]
-#[case("do;", "do action member")]
+#[case("do action doAction;", "full form with action keyword")]
+#[case("do action exercise : Exercise;", "typed do action")]
+#[case("do action doAction: Action :>> 'do';", "do action with redefinition")]
+#[case("do action exercise : Exercise { }", "do action with body")]
+#[case("do;", "empty do action shorthand")]
+#[case("do monitorTemperature;", "do reference subsetting shorthand")]
 fn test_parse_do_action_member(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::do_action_member, input);
 
@@ -3798,7 +3814,14 @@ fn test_parse_do_action_member(#[case] input: &str, #[case] desc: &str) {
 }
 
 #[rstest]
-#[case("exit;", "exit action member")]
+#[case("exit action exitAction;", "full form with action keyword")]
+#[case("exit action cooldown : Cooldown;", "typed exit action")]
+#[case(
+    "exit action exitAction: Action :>> 'exit';",
+    "exit action with redefinition"
+)]
+#[case("exit;", "empty exit action shorthand")]
+#[case("exit cleanup;", "exit reference subsetting shorthand")]
 fn test_parse_exit_action_member(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::exit_action_member, input);
 

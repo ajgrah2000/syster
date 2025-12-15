@@ -77,6 +77,14 @@ pub struct EventEmitter<T: Event, Context> {
     listeners: Vec<EventListener<T, Context>>,
 }
 
+impl<T: Event, Context> std::fmt::Debug for EventEmitter<T, Context> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventEmitter")
+            .field("listener_count", &self.listeners.len())
+            .finish()
+    }
+}
+
 impl<T: Event, Context> EventEmitter<T, Context> {
     /// Creates a new event emitter with no listeners
     pub fn new() -> Self {
