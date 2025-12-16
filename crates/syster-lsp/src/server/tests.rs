@@ -685,3 +685,33 @@ fn test_find_references_nested_elements() {
     assert!(lines.contains(&3)); // frontWheel
     assert!(lines.contains(&4)); // rearWheel
 }
+
+#[test]
+fn test_document_symbols() {
+    let mut server = LspServer::new();
+    let uri = Url::parse("file:///test.sysml").unwrap();
+    let text = r#"
+part def Vehicle;
+part def Engine;
+part engine : Engine;
+    "#;
+
+    server.open_document(&uri, text).unwrap();
+
+    let path = std::path::Path::new("/test.sysml");
+    let symbols = server.get_document_symbols(path);
+
+    // Debug: print what symbols we got
+    for sym in &symbols {
+        eprintln!("Symbol: {} (kind: {:?})", sym.name, sym.kind);
+    }
+
+    // Should have 3 symbols
+    assert_eq!(symbols.len(), 3);
+
+    // Check symbol names
+    let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
+    assert!(names.contains(&"Vehicle"));
+    assert!(names.contains(&"Engine"));
+    assert!(names.contains(&"engine"));
+}

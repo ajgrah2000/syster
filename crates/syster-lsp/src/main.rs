@@ -21,6 +21,7 @@ impl LanguageServer for SysterLanguageServer {
                 hover_provider: Some(HoverProviderCapability::Simple(true)),
                 definition_provider: Some(OneOf::Left(true)),
                 references_provider: Some(OneOf::Left(true)),
+                document_symbol_provider: Some(OneOf::Left(true)),
                 ..Default::default()
             },
             ..Default::default()
@@ -140,6 +141,23 @@ impl LanguageServer for SysterLanguageServer {
 
         let server = self.server.lock().await;
         Ok(server.get_references(&uri, position, include_declaration))
+    }
+
+    async fn document_symbol(
+        &self,
+        params: DocumentSymbolParams,
+    ) -> Result<Option<DocumentSymbolResponse>> {
+        let uri = params.text_document.uri;
+
+        let server = self.server.lock().await;
+        let path = std::path::Path::new(uri.path());
+        let symbols = server.get_document_symbols(path);
+
+        if symbols.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(DocumentSymbolResponse::Nested(symbols)))
+        }
     }
 
     async fn shutdown(&self) -> Result<()> {
