@@ -11,7 +11,7 @@
 //!    - Add the symbol's span to the target's `references` list
 //! 3. Result: Each symbol knows all locations where it's referenced
 
-use crate::core::Span;
+use crate::core::SymbolReference;
 use crate::language::sysml::populator::{
     REL_REDEFINITION, REL_REFERENCE_SUBSETTING, REL_SPECIALIZATION, REL_SUBSETTING, REL_TYPING,
 };
@@ -39,21 +39,41 @@ impl<'a> ReferenceCollector<'a> {
     pub fn collect(&mut self) {
         let references_to_add = self.collect_references();
 
-        for (target_name, spans) in references_to_add {
-            if let Some(symbol) = self.symbol_table.lookup_mut(&target_name) {
-                for span in spans {
-                    symbol.add_reference(span);
+        for (target_name, refs) in references_to_add {
+            // Try to resolve the target name (might be unqualified like "Wheel")
+            // Collect keys first to avoid borrow conflicts
+            let all_symbols: Vec<(String, String)> = self
+                .symbol_table
+                .all_symbols()
+                .into_iter()
+                .map(|(k, sym)| (k.clone(), sym.name().to_string()))
+                .collect();
+
+            let symbol_key = all_symbols
+                .iter()
+                .find(|(k, name)| k == &target_name || name == &target_name)
+                .map(|(k, _)| k.clone());
+
+            if let Some(key) = symbol_key {
+                if let Some(symbol) = self.symbol_table.lookup_global_mut(&key) {
+                    for reference in refs {
+                        symbol.add_reference(reference);
+                    }
                 }
             }
         }
     }
 
     /// Collect references by examining relationship graphs
-    fn collect_references(&self) -> HashMap<String, Vec<Span>> {
-        let mut references: HashMap<String, Vec<Span>> = HashMap::new();
+    fn collect_references(&self) -> HashMap<String, Vec<SymbolReference>> {
+        let mut references: HashMap<String, Vec<SymbolReference>> = HashMap::new();
 
-        for (_key, symbol) in self.symbol_table.all_symbols() {
+        for (key, symbol) in self.symbol_table.all_symbols() {
             let Some(span) = symbol.span() else {
+                continue;
+            };
+
+            let Some(file) = symbol.source_file() else {
                 continue;
             };
 
@@ -61,10 +81,17 @@ impl<'a> ReferenceCollector<'a> {
             let targets = self.get_all_targets(symbol.qualified_name());
 
             for target in targets {
-                references.entry(target).or_default().push(span.clone());
+                references.entry(target).or_default().push(SymbolReference {
+                    file: file.to_string(),
+                    span: span.clone(),
+                });
             }
         }
 
+        eprintln!(
+            "ReferenceCollector: Collected {} unique targets",
+            references.len()
+        );
         references
     }
 

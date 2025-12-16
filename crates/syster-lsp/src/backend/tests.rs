@@ -615,6 +615,16 @@ fn test_find_references_nested_elements() {
 
     backend.open_document(&uri, text).unwrap();
 
+    // Debug: check parsed AST
+    let file = backend
+        .workspace()
+        .files()
+        .get(&std::path::PathBuf::from("/test.sysml"));
+    if let Some(wf) = file {
+        eprintln!("Parsed AST:");
+        eprintln!("{:#?}", wf.content());
+    }
+
     // Find references to "Wheel" (line 1)
     let locations = backend.get_references(
         &uri,
@@ -627,6 +637,42 @@ fn test_find_references_nested_elements() {
 
     assert!(locations.is_some());
     let locations = locations.unwrap();
+
+    // Debug: print what we found
+    eprintln!("Found {} locations:", locations.len());
+    for loc in &locations {
+        eprintln!("  Line {}: {:?}", loc.range.start.line, loc.uri);
+    }
+
+    // Debug: check the symbol
+    let symbol = backend.workspace().symbol_table().lookup("Auto::Wheel");
+    eprintln!(
+        "Symbol lookup result: {:?}",
+        symbol.map(|s| (s.qualified_name(), s.references().len()))
+    );
+
+    // Debug: check all symbols
+    eprintln!("All symbols in table:");
+    for (key, sym) in backend.workspace().symbol_table().all_symbols() {
+        eprintln!(
+            "  {} -> {} (refs: {})",
+            key,
+            sym.qualified_name(),
+            sym.references().len()
+        );
+    }
+
+    // Debug: check relationship graph
+    eprintln!("Typing relationships:");
+    for (key, _) in backend.workspace().symbol_table().all_symbols() {
+        if let Some(target) = backend
+            .workspace()
+            .relationship_graph()
+            .get_one_to_one("typing", key)
+        {
+            eprintln!("  {} -> {}", key, target);
+        }
+    }
 
     // Should find: definition + 2 usages = 3 total
     assert_eq!(locations.len(), 3);

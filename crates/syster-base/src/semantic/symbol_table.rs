@@ -87,9 +87,9 @@
 //! // Lookup by name
 //! let symbol = table.lookup("Automotive");
 //! ```
-use crate::core::Span;
 use crate::core::events::EventEmitter;
 use crate::core::operation::{EventBus, OperationResult};
+use crate::core::{Span, SymbolReference};
 use crate::semantic::events::SymbolTableEvent;
 use std::collections::HashMap;
 
@@ -108,7 +108,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
     Classifier {
         name: String,
@@ -118,7 +118,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
     Feature {
         name: String,
@@ -127,7 +127,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
     Definition {
         name: String,
@@ -136,7 +136,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
     Usage {
         name: String,
@@ -145,7 +145,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
     Alias {
         name: String,
@@ -154,7 +154,7 @@ pub enum Symbol {
         scope_id: usize,
         source_file: Option<String>,
         span: Option<Span>,
-        references: Vec<Span>,
+        references: Vec<SymbolReference>,
     },
 }
 
@@ -233,7 +233,7 @@ impl Symbol {
     }
 
     /// Returns all reference locations for this symbol
-    pub fn references(&self) -> &[Span] {
+    pub fn references(&self) -> &[SymbolReference] {
         match self {
             Symbol::Package { references, .. }
             | Symbol::Classifier { references, .. }
@@ -245,14 +245,14 @@ impl Symbol {
     }
 
     /// Adds a reference location to this symbol (mutable access required)
-    pub fn add_reference(&mut self, span: Span) {
+    pub fn add_reference(&mut self, reference: SymbolReference) {
         match self {
             Symbol::Package { references, .. }
             | Symbol::Classifier { references, .. }
             | Symbol::Feature { references, .. }
             | Symbol::Definition { references, .. }
             | Symbol::Usage { references, .. }
-            | Symbol::Alias { references, .. } => references.push(span),
+            | Symbol::Alias { references, .. } => references.push(reference),
         }
     }
 }
@@ -307,6 +307,11 @@ impl SymbolTable {
     /// Gets the current source file context
     pub fn current_file(&self) -> Option<&str> {
         self.current_file.as_deref()
+    }
+
+    /// Gets the current scope ID
+    pub fn get_current_scope(&self) -> usize {
+        self.current_scope
     }
 
     pub fn enter_scope(&mut self) -> usize {
@@ -424,6 +429,17 @@ impl SymbolTable {
             }
         }
 
+        None
+    }
+
+    /// Looks up a symbol mutably across all scopes (global search)
+    pub fn lookup_global_mut(&mut self, name: &str) -> Option<&mut Symbol> {
+        // Search through all scopes
+        for scope in &mut self.scopes {
+            if let Some(symbol) = scope.symbols.get_mut(name) {
+                return Some(symbol);
+            }
+        }
         None
     }
 

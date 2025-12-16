@@ -219,16 +219,8 @@ impl Backend {
 
     /// Find all references to a symbol at the given position
     ///
-    /// This method:
-    /// 1. Identifies the symbol at the cursor position
-    /// 2. Looks up the symbol in the symbol table
-    /// 3. Searches all files in the workspace for references to that symbol
-    /// 4. Returns locations of all references (optionally including the declaration)
-    ///
-    /// # Parameters
-    /// - `uri`: The file containing the symbol
-    /// - `position`: The cursor position on the symbol
-    /// - `include_declaration`: Whether to include the symbol's definition in results
+    /// Returns reference locations that were collected during semantic analysis.
+    /// Optionally includes the symbol's declaration location.
     pub fn get_references(
         &self,
         uri: &Url,
@@ -236,24 +228,16 @@ impl Backend {
         include_declaration: bool,
     ) -> Option<Vec<Location>> {
         let path = uri.to_file_path().ok()?;
-
-        // Get document text to extract word at position
         let text = self.document_texts.get(&path)?;
-
-        // Find symbol at position (this gives us the containing element)
-        let (element_name, _range) = self.find_symbol_at_position(&path, position)?;
-
-        // Extract the actual word under cursor (handles type references)
+        let (element_name, _) = self.find_symbol_at_position(&path, position)?;
         let cursor_word = extract_word_at_cursor(text, position)?;
-
-        // Determine which name to search for
         let lookup_name = if cursor_word != element_name {
             &cursor_word
         } else {
             &element_name
         };
 
-        // Look up the symbol to get its qualified name
+        // Look up the symbol - references are already collected
         let symbol = self
             .workspace
             .symbol_table()
@@ -268,51 +252,33 @@ impl Backend {
                     .map(|(_, sym)| sym)
             })?;
 
-        let _qualified_name = symbol.qualified_name();
-        let simple_name = symbol.name();
+        // Convert references to LSP locations
+        let mut locations: Vec<Location> = symbol
+            .references()
+            .iter()
+            .filter_map(|r| {
+                Url::from_file_path(&r.file).ok().map(|uri| Location {
+                    uri,
+                    range: Range {
+                        start: Position {
+                            line: r.span.start.line as u32,
+                            character: r.span.start.column as u32,
+                        },
+                        end: Position {
+                            line: r.span.end.line as u32,
+                            character: r.span.end.column as u32,
+                        },
+                    },
+                })
+            })
+            .collect();
 
-        // Search all files for references
-        let mut locations = Vec::new();
-
-        for file_path in self.workspace.files().keys() {
-            let file_uri = Url::from_file_path(file_path).ok()?;
-            let file_text = self.document_texts.get(file_path)?;
-
-            // Use text-based search to find all occurrences of the symbol name
-            // This is more accurate than AST spans which cover entire elements
-            find_text_references(file_text, simple_name, &file_uri, &mut locations);
+        // Add declaration if requested
+        if include_declaration {
+            if let Some(def) = self.get_definition(uri, position) {
+                locations.push(def);
+            }
         }
-
-        // Filter out declaration if requested
-        if !include_declaration
-            && let (Some(def_file), Some(def_span)) = (symbol.source_file(), symbol.span())
-            && let Ok(def_uri) = Url::from_file_path(def_file)
-        {
-            locations.retain(|loc| {
-                // Keep locations that are NOT within the definition span
-                !(loc.uri == def_uri
-                    && loc.range.start.line >= def_span.start.line as u32
-                    && loc.range.end.line <= def_span.end.line as u32
-                    && (loc.range.start.line > def_span.start.line as u32
-                        || loc.range.start.character >= def_span.start.column as u32)
-                    && (loc.range.end.line < def_span.end.line as u32
-                        || loc.range.end.character <= def_span.end.column as u32))
-            });
-        }
-
-        // Deduplicate locations (same file + same position)
-        locations.sort_by(|a, b| {
-            a.uri
-                .as_str()
-                .cmp(b.uri.as_str())
-                .then(a.range.start.line.cmp(&b.range.start.line))
-                .then(a.range.start.character.cmp(&b.range.start.character))
-        });
-        locations.dedup_by(|a, b| {
-            a.uri == b.uri
-                && a.range.start.line == b.range.start.line
-                && a.range.start.character == b.range.start.character
-        });
 
         Some(locations)
     }
@@ -349,53 +315,6 @@ fn extract_word_at_cursor(text: &str, position: Position) -> Option<String> {
     let line = lines.get(position.line as usize)?;
 
     syster::core::text_utils::extract_word_at_cursor(line, position.character as usize)
-}
-
-/// Find text-based references to a symbol
-fn find_text_references(
-    text: &str,
-    symbol_name: &str,
-    file_uri: &Url,
-    locations: &mut Vec<Location>,
-) {
-    use syster::core::text_utils::is_word_character;
-
-    // Search for the symbol name in the text
-    for (line_num, line) in text.lines().enumerate() {
-        let mut col = 0;
-        while let Some(pos) = line[col..].find(symbol_name) {
-            let actual_col = col + pos;
-
-            // Check if this is a complete word (not part of another identifier)
-            let before_ok = actual_col == 0
-                || !line
-                    .chars()
-                    .nth(actual_col - 1)
-                    .is_some_and(is_word_character);
-
-            let after_pos = actual_col + symbol_name.len();
-            let after_ok = after_pos >= line.len()
-                || !line.chars().nth(after_pos).is_some_and(is_word_character);
-
-            if before_ok && after_ok {
-                locations.push(Location {
-                    uri: file_uri.clone(),
-                    range: Range {
-                        start: Position {
-                            line: line_num as u32,
-                            character: actual_col as u32,
-                        },
-                        end: Position {
-                            line: line_num as u32,
-                            character: (actual_col + symbol_name.len()) as u32,
-                        },
-                    },
-                });
-            }
-
-            col = actual_col + 1;
-        }
-    }
 }
 
 /// Find an element at the given position in the AST

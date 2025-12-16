@@ -66,8 +66,8 @@ fn test_typing_relationship_reference() {
     // Verify Vehicle has a reference from myCar
     let vehicle = table.lookup("Vehicle").unwrap();
     assert_eq!(vehicle.references().len(), 1);
-    assert_eq!(vehicle.references()[0].start.line, 5);
-    assert_eq!(vehicle.references()[0].start.column, 0);
+    assert_eq!(vehicle.references()[0].span.start.line, 5);
+    assert_eq!(vehicle.references()[0].span.start.column, 0);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn test_specialization_relationship_reference() {
     // Verify Vehicle has a reference from Car
     let vehicle = table.lookup("Vehicle").unwrap();
     assert_eq!(vehicle.references().len(), 1);
-    assert_eq!(vehicle.references()[0].start.line, 3);
+    assert_eq!(vehicle.references()[0].span.start.line, 3);
 }
 
 #[test]
@@ -239,7 +239,7 @@ fn test_multiple_references_to_same_symbol() {
     let integer = table.lookup("Integer").unwrap();
     assert_eq!(integer.references().len(), 3);
 
-    let lines: Vec<_> = integer.references().iter().map(|r| r.start.line).collect();
+    let lines: Vec<_> = integer.references().iter().map(|r| r.span.start.line).collect();
     assert!(lines.contains(&5));
     assert!(lines.contains(&6));
     assert!(lines.contains(&7));
@@ -308,7 +308,7 @@ fn test_redefinition_reference() {
     // Verify Vehicle::mass has a reference from Car::mass
     let base_mass = table.lookup("Vehicle::mass").unwrap();
     assert_eq!(base_mass.references().len(), 1);
-    assert_eq!(base_mass.references()[0].start.line, 6);
+    assert_eq!(base_mass.references()[0].span.start.line, 6);
 }
 
 #[test]
@@ -374,7 +374,7 @@ fn test_subsetting_reference() {
     // Verify parts has a reference from engineParts
     let parts = table.lookup("parts").unwrap();
     assert_eq!(parts.references().len(), 1);
-    assert_eq!(parts.references()[0].start.line, 4);
+    assert_eq!(parts.references()[0].span.start.line, 4);
 }
 
 #[test]
@@ -440,7 +440,7 @@ fn test_reference_subsetting() {
     // Verify vehicle has a reference from car
     let vehicle = table.lookup("vehicle").unwrap();
     assert_eq!(vehicle.references().len(), 1);
-    assert_eq!(vehicle.references()[0].start.line, 4);
+    assert_eq!(vehicle.references()[0].span.start.line, 4);
 }
 
 #[test]
@@ -627,7 +627,7 @@ fn test_mixed_relationships() {
     let base = table.lookup("Base").unwrap();
     assert_eq!(base.references().len(), 2);
 
-    let lines: Vec<_> = base.references().iter().map(|r| r.start.line).collect();
+    let lines: Vec<_> = base.references().iter().map(|r| r.span.start.line).collect();
     assert!(lines.contains(&3)); // from Derived
     assert!(lines.contains(&5)); // from instance
 }

@@ -168,6 +168,7 @@ use crate::semantic::dependency_graph::DependencyGraph;
 use crate::semantic::events::WorkspaceEvent;
 use crate::semantic::graph::RelationshipGraph;
 use crate::semantic::import_extractor::extract_imports;
+use crate::semantic::reference_collector::ReferenceCollector;
 use crate::semantic::symbol_table::SymbolTable;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -305,6 +306,11 @@ impl Workspace {
             self.populate_file(&path)?;
         }
 
+        // Collect references after all files are populated
+        let mut collector =
+            ReferenceCollector::new(&mut self.symbol_table, &self.relationship_graph);
+        collector.collect();
+
         Ok(())
     }
 
@@ -336,6 +342,11 @@ impl Workspace {
         unpopulated
             .into_iter()
             .try_for_each(|path| self.populate_file(&path))?;
+
+        // Collect references after affected files are re-populated
+        let mut collector =
+            ReferenceCollector::new(&mut self.symbol_table, &self.relationship_graph);
+        collector.collect();
 
         Ok(count)
     }
