@@ -1,12 +1,12 @@
 use crate::semantic::RelationshipGraph;
-use crate::semantic::resolver::NameResolver;
+use crate::semantic::resolver::Resolver;
 use crate::semantic::symbol_table::SymbolTable;
 use crate::semantic::types::{SemanticError, SemanticResult};
 
 pub struct AnalysisContext<'a> {
     pub symbol_table: &'a SymbolTable,
     pub relationship_graph: &'a RelationshipGraph,
-    pub resolver: NameResolver<'a>,
+    pub resolver: Resolver<'a>,
     pub errors: Vec<SemanticError>,
 }
 
@@ -15,7 +15,7 @@ impl<'a> AnalysisContext<'a> {
         Self {
             symbol_table,
             relationship_graph,
-            resolver: NameResolver::new(symbol_table),
+            resolver: Resolver::new(symbol_table),
             errors: Vec::new(),
         }
     }

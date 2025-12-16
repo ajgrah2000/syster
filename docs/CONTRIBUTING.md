@@ -154,7 +154,7 @@ fn test_with_filter() {
 /// # Examples
 ///
 /// ```
-/// let resolver = NameResolver::new(&symbol_table);
+/// let resolver = Resolver::new(&symbol_table);
 /// let symbol = resolver.resolve_qualified("MyPackage::MyClass");
 /// ```
 pub fn resolve_qualified(&self, qualified_name: &str) -> Option<&Symbol> {

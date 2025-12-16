@@ -2,7 +2,10 @@
 #![allow(clippy::panic)]
 
 use super::*;
-use crate::semantic::symbol_table::Symbol;
+use crate::{
+    language::sysml::syntax::{Element, Import, SysMLFile},
+    semantic::{SymbolTable, symbol_table::Symbol},
+};
 
 #[test]
 fn test_resolve_simple_name() {
@@ -21,7 +24,7 @@ fn test_resolve_simple_name() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("MyPackage");
 
     let Some(Symbol::Package { name, .. }) = result else {
@@ -33,7 +36,7 @@ fn test_resolve_simple_name() {
 #[test]
 fn test_resolve_nonexistent() {
     let table = SymbolTable::new();
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("DoesNotExist");
 
     assert!(result.is_none());
@@ -72,7 +75,7 @@ fn test_resolve_qualified_name() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Root::Child");
 
     let Some(Symbol::Package {
@@ -140,7 +143,7 @@ fn test_resolve_deeply_nested_qualified_name() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("A::B::C");
 
     let Some(Symbol::Classifier {
@@ -194,7 +197,7 @@ fn test_resolve_classifier_in_package() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Pkg::MyClass");
 
     let Some(Symbol::Classifier { kind, .. }) = result else {
@@ -221,7 +224,7 @@ fn test_resolve_invalid_qualified_name() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Root::DoesNotExist");
 
     assert!(result.is_none());
@@ -260,7 +263,7 @@ fn test_resolve_partial_qualified_name() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("A::B::C");
 
     assert!(result.is_none());
@@ -300,7 +303,7 @@ fn test_resolve_feature_symbol() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Pkg::attr");
 
     let Some(Symbol::Feature {
@@ -338,7 +341,7 @@ fn test_resolve_definition_symbol() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("MyPart");
 
     let Some(Symbol::Definition { name, kind, .. }) = result else {
@@ -383,7 +386,7 @@ fn test_resolve_usage_symbol() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("System::myPort");
 
     let Some(Symbol::Usage { name, kind, .. }) = result else {
@@ -444,7 +447,7 @@ fn test_resolve_mixed_symbol_path() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Root::MyClass::feature");
 
     let Some(Symbol::Feature {
@@ -466,7 +469,7 @@ fn test_resolve_mixed_symbol_path() {
 #[test]
 fn test_resolve_empty_string() {
     let table = SymbolTable::new();
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("");
 
     assert!(result.is_none());
@@ -475,7 +478,7 @@ fn test_resolve_empty_string() {
 #[test]
 fn test_resolve_only_separators() {
     let table = SymbolTable::new();
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("::");
 
     assert!(result.is_none());
@@ -498,7 +501,7 @@ fn test_resolve_leading_separator() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("::Package");
 
     assert!(result.is_none());
@@ -521,7 +524,7 @@ fn test_resolve_trailing_separator() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("Package::");
 
     assert!(result.is_none());
@@ -559,7 +562,7 @@ fn test_resolve_multiple_consecutive_separators() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("A::::B");
 
     assert!(result.is_none());
@@ -614,7 +617,7 @@ fn test_resolve_definition_in_nested_scopes() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("OuterPkg::InnerPkg::requirement");
 
     let Some(Symbol::Definition {
@@ -654,7 +657,7 @@ fn test_resolve_abstract_classifier() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
     let result = resolver.resolve("AbstractClass");
 
     let Some(Symbol::Classifier { is_abstract, .. }) = result else {
@@ -699,7 +702,7 @@ fn test_resolve_different_classifier_kinds() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
 
     let behavior_result = resolver.resolve("MyBehavior");
     let Some(Symbol::Classifier { kind, .. }) = behavior_result else {
@@ -748,7 +751,7 @@ fn test_resolve_import_specific_member() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
 
     // Specific import
     let imports = resolver.resolve_import("Base::Vehicle");
@@ -823,7 +826,7 @@ fn test_resolve_import_wildcard() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
 
     // Wildcard import
     let mut imports = resolver.resolve_import("Base::*");
@@ -882,7 +885,7 @@ fn test_resolve_import_bare_wildcard() {
         )
         .unwrap();
 
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
 
     // Bare wildcard
     let mut imports = resolver.resolve_import("*");
@@ -896,7 +899,7 @@ fn test_resolve_import_bare_wildcard() {
 #[test]
 fn test_resolve_import_nonexistent() {
     let table = SymbolTable::new();
-    let resolver = NameResolver::new(&table);
+    let resolver = Resolver::new(&table);
 
     // Specific import that doesn't exist
     let imports = resolver.resolve_import("DoesNotExist::Member");
@@ -905,4 +908,145 @@ fn test_resolve_import_nonexistent() {
     // Wildcard import that doesn't match anything
     let imports = resolver.resolve_import("DoesNotExist::*");
     assert_eq!(imports.len(), 0);
+}
+
+#[test]
+fn test_extract_no_imports() {
+    // TDD: File with no imports returns empty vec
+    let file = SysMLFile {
+        namespace: None,
+        elements: vec![],
+    };
+
+    let imports = extract_imports(&file);
+    assert_eq!(imports.len(), 0);
+}
+
+#[test]
+fn test_extract_single_import() {
+    // TDD: File with one import statement
+    let file = SysMLFile {
+        namespace: None,
+        elements: vec![Element::Import(Import {
+            path: "Base::Vehicle".to_string(),
+            is_recursive: false,
+            span: None,
+        })],
+    };
+
+    let imports = extract_imports(&file);
+    assert_eq!(imports.len(), 1);
+    assert_eq!(imports[0], "Base::Vehicle");
+}
+
+#[test]
+fn test_extract_multiple_imports() {
+    // TDD: File with multiple import statements
+    let file = SysMLFile {
+        namespace: None,
+        elements: vec![
+            Element::Import(Import {
+                path: "Base::Vehicle".to_string(),
+                is_recursive: false,
+                span: None,
+            }),
+            Element::Import(Import {
+                path: "Systems::Engine".to_string(),
+                is_recursive: false,
+                span: None,
+            }),
+            Element::Import(Import {
+                path: "Utils::*".to_string(),
+                is_recursive: true,
+                span: None,
+            }),
+        ],
+    };
+
+    let imports = extract_imports(&file);
+    assert_eq!(imports.len(), 3);
+    assert!(imports.contains(&"Base::Vehicle".to_string()));
+    assert!(imports.contains(&"Systems::Engine".to_string()));
+    assert!(imports.contains(&"Utils::*".to_string()));
+}
+
+#[test]
+fn test_extract_recursive_imports() {
+    // TDD: Wildcard imports should be captured
+    let file = SysMLFile {
+        namespace: None,
+        elements: vec![Element::Import(Import {
+            path: "SysML::*".to_string(),
+            is_recursive: true,
+            span: None,
+        })],
+    };
+
+    let imports = extract_imports(&file);
+    assert_eq!(imports.len(), 1);
+    assert_eq!(imports[0], "SysML::*");
+}
+
+#[test]
+fn test_extract_imports_mixed_elements() {
+    // TDD: Should extract imports even with other elements present
+    use crate::language::sysml::syntax::types::NamespaceDeclaration;
+
+    let file = SysMLFile {
+        namespace: Some(NamespaceDeclaration {
+            name: "MyPackage".to_string(),
+            span: None,
+        }),
+        elements: vec![
+            Element::Import(Import {
+                path: "Base::Vehicle".to_string(),
+                is_recursive: false,
+                span: None,
+            }),
+            Element::Comment(crate::language::sysml::syntax::Comment {
+                content: "Some comment".to_string(),
+                span: None,
+            }),
+            Element::Import(Import {
+                path: "Systems::Engine".to_string(),
+                is_recursive: false,
+                span: None,
+            }),
+        ],
+    };
+
+    let imports = extract_imports(&file);
+    assert_eq!(imports.len(), 2);
+}
+
+#[test]
+fn test_parse_namespace_path() {
+    // TDD: Parse import path into components
+    let path = "Base::Components::Vehicle";
+    let parts = parse_import_path(path);
+
+    assert_eq!(parts.len(), 3);
+    assert_eq!(parts[0], "Base");
+    assert_eq!(parts[1], "Components");
+    assert_eq!(parts[2], "Vehicle");
+}
+
+#[test]
+fn test_parse_wildcard_import() {
+    // TDD: Wildcard imports parse correctly
+    let path = "SysML::*";
+    let parts = parse_import_path(path);
+
+    assert_eq!(parts.len(), 2);
+    assert_eq!(parts[0], "SysML");
+    assert_eq!(parts[1], "*");
+}
+
+#[test]
+fn test_is_wildcard_import() {
+    // TDD: Detect wildcard imports
+    assert!(is_wildcard_import("SysML::*"));
+    assert!(is_wildcard_import("Base::Components::*"));
+    assert!(!is_wildcard_import("Base::Vehicle"));
+    assert!(!is_wildcard_import("SysML::Items"));
 }

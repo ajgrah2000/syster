@@ -1,16 +1,14 @@
-//! Relationship graphs for tracking semantic relationships between symbols
-
 mod dependency_graph;
-mod one_to_many;
-mod one_to_one;
+mod one_to_many_graph;
+mod one_to_one_graph;
 mod relationship_graph;
-mod symmetric;
+mod symmetric_graph;
 
 pub use dependency_graph::DependencyGraph;
-pub use one_to_many::OneToManyGraph;
-pub use one_to_one::OneToOneGraph;
+pub use one_to_many_graph::OneToManyGraph;
+pub use one_to_one_graph::OneToOneGraph;
 pub use relationship_graph::RelationshipGraph;
-pub use symmetric::SymmetricGraph;
+pub use symmetric_graph::SymmetricGraph;
 
 #[cfg(test)]
 #[path = "graphs/tests.rs"]

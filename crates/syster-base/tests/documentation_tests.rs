@@ -11,7 +11,7 @@
 
 use std::path::PathBuf;
 use syster::language::sysml::syntax::SysMLFile;
-use syster::semantic::{NameResolver, RelationshipGraph, SemanticAnalyzer, SymbolTable, Workspace};
+use syster::semantic::{Resolver, RelationshipGraph, SemanticAnalyzer, SymbolTable, Workspace};
 
 /// Verify that code examples in ARCHITECTURE.md compile and work
 #[test]
@@ -75,7 +75,7 @@ fn test_documented_modules_exist() {
     // Verify key types are public as documented
     let _: SymbolTable;
     let _: RelationshipGraph;
-    let _: NameResolver;
+    let _: Resolver;
     let _: SemanticAnalyzer;
     let _: Workspace;
 }

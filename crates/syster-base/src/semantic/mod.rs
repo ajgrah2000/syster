@@ -13,7 +13,7 @@ pub mod workspace;
 pub use analyzer::{AnalysisContext, SemanticAnalyzer};
 pub use graphs::{DependencyGraph, RelationshipGraph};
 pub use processors::{NoOpValidator, ReferenceCollector, RelationshipValidator};
-pub use resolver::{NameResolver, extract_imports, is_wildcard_import, parse_import_path};
+pub use resolver::{Resolver, extract_imports, is_wildcard_import, parse_import_path};
 pub use symbol_table::SymbolTable;
 pub use types::{
     DependencyEvent, Diagnostic, Location as DiagnosticLocation, Location, Position, Range,
