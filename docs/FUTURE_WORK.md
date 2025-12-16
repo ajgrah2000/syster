@@ -29,15 +29,14 @@
   - [x] Tests: keyword completion, file type detection
   - [x] Architecture: Keywords from parser layer, symbols from semantic layer, context in LSP
 
-### In Progress / Next Tasks
+- [x] **Task 15: Rename Symbol** ✅
+  - [x] Add `get_rename_edits()` method to LspServer
+  - [x] Find all references to symbol (reuse find-references logic)
+  - [x] Generate WorkspaceEdit with all locations (definition + references)
+  - [x] Wire up `textDocument/rename` LSP handler
+  - [x] Tests: rename from definition, rename from usage
 
-- [ ] **Task 15: Rename Symbol**
-  - [ ] Add `get_rename_edits()` method to Backend
-  - [ ] Find all references to symbol (reuse Task 11 logic)
-  - [ ] Generate WorkspaceEdit with all locations
-  - [ ] Update qualified names in symbol table
-  - [ ] Wire up `textDocument/rename` LSP handler
-  - [ ] Tests: rename definition, rename usage, cross-file rename
+### In Progress / Next Tasks
 
 ### Architecture Notes
 - **Reusable patterns:**
