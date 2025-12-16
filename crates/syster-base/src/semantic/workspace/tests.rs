@@ -1,7 +1,10 @@
 #![allow(clippy::unwrap_used)]
 
+use std::path::PathBuf;
+
 use super::*;
 use crate::language::sysml::populator::REL_SPECIALIZATION;
+use crate::language::sysml::syntax::SysMLFile;
 use crate::parser::{SysMLParser, sysml::Rule};
 use from_pest::FromPest;
 use pest::Parser;
