@@ -20,15 +20,16 @@
   - [x] Tests: 6 unit tests (processor), 1 integration test (LSP)
   - [x] Architecture: Processor pattern in semantic/processors/, thin LSP adapter
 
-### In Progress / Next Tasks
+- [x] **Task 14: Code Completion** ✅
+  - [x] Add keywords module in parser layer (KERML_KEYWORDS, SYSML_KEYWORDS)
+  - [x] Implement get_keywords_for_file() for file-type detection
+  - [x] Detect completion context (AfterColon, AfterRelationshipKeyword, AfterDef, General)
+  - [x] Query symbol table for type and symbol completions
+  - [x] Wire up `textDocument/completion` LSP handler
+  - [x] Tests: keyword completion, file type detection
+  - [x] Architecture: Keywords from parser layer, symbols from semantic layer, context in LSP
 
-- [ ] **Task 14: Code Completion**
-  - [ ] Add `get_completions()` method to Backend
-  - [ ] Detect completion context (after `def`, after `:`, etc.)
-  - [ ] Query symbol table for available symbols in scope
-  - [ ] Include relationship keywords (specializes, subsets, etc.)
-  - [ ] Wire up `textDocument/completion` LSP handler
-  - [ ] Tests: keyword completion, type completion, member completion
+### In Progress / Next Tasks
 
 - [ ] **Task 15: Rename Symbol**
   - [ ] Add `get_rename_edits()` method to Backend
