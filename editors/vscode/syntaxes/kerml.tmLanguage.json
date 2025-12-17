@@ -1,0 +1,39 @@
+{
+  "name": "KerML",
+  "scopeName": "source.kerml",
+  "fileTypes": ["kerml"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.kerml",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.kerml",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.kerml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.kerml",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

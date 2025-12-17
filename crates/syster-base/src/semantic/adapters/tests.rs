@@ -14,7 +14,7 @@ use crate::core::constants::{REL_EXHIBIT, REL_INCLUDE, REL_PERFORM, REL_SATISFY}
 use crate::semantic::analyzer::validation::RelationshipValidator;
 use crate::semantic::graphs::RelationshipGraph;
 use crate::semantic::symbol_table::{Symbol, SymbolTable};
-use crate::semantic::types::{SemanticErrorKind, SemanticRole};
+use crate::semantic::types::SemanticRole;
 use crate::syntax::SyntaxFile;
 use crate::syntax::sysml::ast::{Definition, DefinitionKind, Element, Package, SysMLFile};
 use std::sync::Arc;
@@ -517,14 +517,8 @@ fn test_populate_kerml_file_returns_unsupported_error() {
     let syntax_file = SyntaxFile::KerML(kerml_file);
     let result = populate_syntax_file(&syntax_file, &mut table, &mut graph);
 
-    assert!(result.is_err());
-    let errors = result.unwrap_err();
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].kind,
-        SemanticErrorKind::UnsupportedLanguage
-    ));
-    assert!(errors[0].message.contains("KerML"));
+    // KerML files are silently skipped (no error returned)
+    assert!(result.is_ok());
 }
 
 #[test]

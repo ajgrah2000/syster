@@ -3,10 +3,9 @@
 //! Creates the appropriate adapter for a given syntax file type.
 //! This is the only place in the semantic layer that knows about specific adapter implementations.
 
-use crate::core::error_codes::SEMANTIC_UNSUPPORTED_LANGUAGE;
 use crate::semantic::graphs::RelationshipGraph;
 use crate::semantic::symbol_table::SymbolTable;
-use crate::semantic::types::{SemanticError, SemanticErrorKind};
+use crate::semantic::types::SemanticError;
 use crate::syntax::SyntaxFile;
 
 use super::SysmlAdapter;
@@ -26,11 +25,9 @@ pub fn populate_syntax_file(
             // TODO: Implement KerML adapter when ready
             // let mut adapter = KermlAdapter::with_relationships(symbol_table, relationship_graph);
             // adapter.populate(kerml_file)
-            Err(vec![SemanticError::new(
-                SEMANTIC_UNSUPPORTED_LANGUAGE,
-                SemanticErrorKind::UnsupportedLanguage,
-                "KerML files are not yet supported".to_string(),
-            )])
+            // For now, skip KerML files silently instead of failing
+            // This allows SysML files to be populated even when KerML files are present
+            Ok(())
         }
     }
 }

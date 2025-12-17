@@ -1,0 +1,39 @@
+{
+  "name": "SysML v2",
+  "scopeName": "source.sysml",
+  "fileTypes": ["sysml"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.sysml",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.sysml",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.sysml",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.sysml",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

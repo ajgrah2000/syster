@@ -10,46 +10,6 @@ pub fn extract_word_at_cursor(text: &str, position: Position) -> Option<String> 
     syster::core::text_utils::extract_word_at_cursor(line, position.character as usize)
 }
 
-/// Find an element at the given position in the AST
-pub fn find_element_at_position(
-    element: &syster::syntax::sysml::ast::Element,
-    position: syster::core::Position,
-) -> Option<(String, syster::core::Span)> {
-    use syster::syntax::sysml::ast::Element;
-
-    match element {
-        Element::Package(pkg) => {
-            // First, check nested elements (most specific match)
-            for child in &pkg.elements {
-                if let Some(result) = find_element_at_position(child, position) {
-                    return Some(result);
-                }
-            }
-            // If no nested element matched, check if position is in package itself
-            check_element_match(&pkg.name, pkg.span, position)
-        }
-        Element::Definition(def) => check_element_match(&def.name, def.span, position),
-        Element::Usage(usage) => check_element_match(&usage.name, usage.span, position),
-        Element::Alias(alias) => check_element_match(&alias.name, alias.span, position),
-        _ => None,
-    }
-}
-
-/// Helper to check if a position matches an element's name and span
-fn check_element_match(
-    name: &Option<String>,
-    span: Option<syster::core::Span>,
-    position: syster::core::Position,
-) -> Option<(String, syster::core::Span)> {
-    if let (Some(name), Some(span)) = (name, span)
-        && span.contains(position)
-    {
-        Some((name.clone(), span))
-    } else {
-        None
-    }
-}
-
 /// Convert our Span to LSP Range
 pub fn span_to_lsp_range(span: &syster::core::Span) -> Range {
     Range {

@@ -1,13 +1,20 @@
 {
   "name": "Rust Development Container",
   "image": "mcr.microsoft.com/devcontainers/rust:1-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
         "tamasfe.even-better-toml",
         "serayuzgur.crates",
-        "dustypomerleau.rust-syntax"
+        "dustypomerleau.rust-syntax",
+        "dbaeumer.vscode-eslint",
+        "ms-vscode.vscode-typescript-next"
       ],
       "settings": {
         "rust-analyzer.check.command": "clippy",
@@ -18,6 +25,6 @@
       }
     }
   },
-  "postCreateCommand": "rustc --version && cargo --version",
+  "postCreateCommand": "rustc --version && cargo --version && cd editors/vscode && npm install",
   "remoteUser": "vscode"
 }

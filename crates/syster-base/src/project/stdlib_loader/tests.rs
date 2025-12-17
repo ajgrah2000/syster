@@ -142,8 +142,8 @@ fn test_files_added_to_workspace() {
     // Verify files were added to workspace
     let file_count = workspace.file_paths().count();
     assert_eq!(
-        file_count, 58,
-        "Expected exactly 58 successfully parsed files, found {}",
+        file_count, 63,
+        "Expected exactly 63 successfully parsed files, found {}",
         file_count
     );
 

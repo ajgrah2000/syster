@@ -10,15 +10,12 @@ impl LspServer {
     pub fn get_hover(&self, uri: &Url, position: Position) -> Option<Hover> {
         let path = uri.to_file_path().ok()?;
 
-        // Find symbol at position using AST spans
-        let (symbol_name, hover_range) = self.find_symbol_at_position(&path, position)?;
+        // Find symbol at position - returns qualified name string
+        let (qualified_name, hover_range) = self.find_symbol_at_position(&path, position)?;
 
-        // Look up symbol in workspace (try qualified name first, then simple name)
-        let symbol = self
-            .workspace
-            .symbol_table()
-            .lookup_qualified(&symbol_name)
-            .or_else(|| self.workspace.symbol_table().lookup(&symbol_name))?;
+        // Look up the symbol using the qualified name
+        let resolver = self.resolver();
+        let symbol = resolver.resolve(&qualified_name)?;
 
         // Format rich hover content with relationships
         let content = format_rich_hover(symbol, self.workspace());

@@ -27,6 +27,7 @@ fn extract_usages_from_body<'a>(
         | Rule::perform_action_usage
         | Rule::satisfy_requirement_usage
         | Rule::include_use_case_usage
+        | Rule::objective_member
         | Rule::part_usage
         | Rule::action_usage
         | Rule::requirement_usage
@@ -45,11 +46,15 @@ fn extract_usages_from_body<'a>(
             let relationships = extract_relationships(pair);
             let (is_derived, is_readonly) = extract_property_flags(pair);
             let span = Some(pest_span_to_span(pair.as_span()));
+
+            // Extract usage body if present
+            let usage_body = extract_usage_body(pair);
+
             body.push(DefinitionMember::Usage(Box::new(Usage {
                 kind,
                 name,
                 relationships,
-                body: vec![],
+                body: usage_body,
                 span,
                 is_derived,
                 is_readonly,
@@ -86,6 +91,47 @@ fn extract_property_flags(pair: &pest::iterators::Pair<Rule>) -> (bool, bool) {
     }
 
     (is_derived, is_readonly)
+}
+
+// Helper to extract usage body (nested usages/comments)
+fn extract_usage_body(pair: &pest::iterators::Pair<Rule>) -> Vec<super::enums::UsageMember> {
+    let mut usage_body = vec![];
+
+    for inner in pair.clone().into_inner() {
+        match inner.as_rule() {
+            Rule::usage_body | Rule::requirement_body => {
+                // Recursively extract body items
+                for body_item in inner.into_inner() {
+                    extract_usage_body_items(&body_item, &mut usage_body);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    usage_body
+}
+
+// Helper to extract items from usage/requirement body
+fn extract_usage_body_items(
+    pair: &pest::iterators::Pair<Rule>,
+    body: &mut Vec<super::enums::UsageMember>,
+) {
+    match pair.as_rule() {
+        Rule::documentation | Rule::block_comment => {
+            let comment_text = pair.as_str().to_string();
+            body.push(super::enums::UsageMember::Comment(Comment {
+                content: comment_text,
+                span: Some(pest_span_to_span(pair.as_span())),
+            }));
+        }
+        _ => {
+            // Recursively search for nested usages and other body items
+            for inner in pair.clone().into_inner() {
+                extract_usage_body_items(&inner, body);
+            }
+        }
+    }
 }
 
 fn find_reference(pair: &pest::iterators::Pair<Rule>) -> Option<String> {
@@ -134,7 +180,7 @@ fn rule_to_usage_kind(rule: Rule) -> Result<UsageKind, ConversionError<Void>> {
     match rule {
         Rule::part_usage => Ok(UsageKind::Part),
         Rule::action_usage => Ok(UsageKind::Action),
-        Rule::requirement_usage => Ok(UsageKind::Requirement),
+        Rule::requirement_usage | Rule::objective_member => Ok(UsageKind::Requirement),
         Rule::port_usage => Ok(UsageKind::Port),
         Rule::item_usage => Ok(UsageKind::Item),
         Rule::attribute_usage => Ok(UsageKind::Attribute),

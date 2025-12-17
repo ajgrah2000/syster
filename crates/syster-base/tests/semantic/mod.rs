@@ -1,4 +1,6 @@
 mod cross_file_tests;
+mod duplicate_symbol_test;
 mod import_tests;
+mod stdlib_symbols_test;
 mod sysml_graph_tests;
 mod sysml_parsing_tests;

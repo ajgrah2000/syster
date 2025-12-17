@@ -3,7 +3,7 @@
 use super::*;
 
 // Simple test struct to avoid depending on syntax layer
-#[derive(Debug)]
+#[allow(dead_code)]
 struct TestData {
     value: String,
 }

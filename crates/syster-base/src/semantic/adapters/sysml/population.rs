@@ -21,7 +21,7 @@ impl<'a> SysmlAdapter<'a> {
         };
 
         // Process all elements in the file
-        for element in &file.elements {
+        for element in file.elements.iter() {
             // Skip Package element if it's the same as the file-level namespace
             // (we've already processed it via visit_namespace above)
             if let Element::Package(p) = element

@@ -853,6 +853,217 @@ fn test_parse_package(#[case] input: &str, #[case] rule: Rule, #[case] desc: &st
     );
 }
 
+#[test]
+fn test_parse_cases_sysml_fragment() {
+    // This is the exact fragment from Cases.sysml that fails to parse
+    let input = r#"abstract case def Case {
+                subject subj : Anything[1] { }
+                objective obj : RequirementCheck[1] {
+                        subject subj default Case::result;
+                }
+        }"#;
+
+    println!("Input length: {}", input.len());
+    println!("Input:\n{}", input);
+
+    let result = SysMLParser::parse(Rule::case_definition, input);
+    if let Err(e) = &result {
+        println!("Error: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse Cases.sysml fragment: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_simplified_case_with_objective() {
+    // Simplified version without the first subject
+    let input = r#"case def Case {
+    objective obj : RequirementCheck[1] {
+        subject subj default Case::result;
+    }
+}"#;
+
+    let result = SysMLParser::parse(Rule::case_definition, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse simplified case: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_requirement_body_with_subject() {
+    // Test just the requirement_body portion
+    let input = r#"{
+        subject subj default Case::result;
+    }"#;
+
+    let result = SysMLParser::parse(Rule::requirement_body, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse requirement_body with subject: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_objective_member_in_case_body() {
+    // Test objective_member as it would appear in a case body
+    let input = r#"objective obj : RequirementCheck[1] {
+        subject subj default Case::result;
+    }"#;
+
+    println!("Testing objective_member...");
+    let result = SysMLParser::parse(Rule::objective_member, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse objective_member: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_case_body_with_objective() {
+    // Test case_body directly
+    let input = r#"{
+    objective obj : RequirementCheck[1] {
+        subject subj default Case::result;
+    }
+}"#;
+
+    println!("Testing case_body...");
+    let result = SysMLParser::parse(Rule::case_body, input);
+    if let Err(e) = &result {
+        println!("ERROR: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse case_body: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_objective_as_case_body_item() {
+    // Test if objective can be parsed as a case_body_item
+    let input = r#"objective obj : RequirementCheck[1] {
+        subject subj default Case::result;
+    }"#;
+
+    println!("Testing case_body_item...");
+    let result = SysMLParser::parse(Rule::case_body_item, input);
+    if let Err(e) = &result {
+        println!("ERROR: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse objective as case_body_item: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_minimal_case_body() {
+    // Minimal test - no whitespace issues
+    let input = "{objective obj{subject subj;}}";
+
+    println!("Testing minimal case_body: {}", input);
+    let result = SysMLParser::parse(Rule::case_body, input);
+    if let Err(e) = &result {
+        println!("ERROR: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse minimal case_body: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_ref_state_usage() {
+    // Test parsing "ref state" which appears in Parts.sysml
+    let input = "ref state myState;";
+
+    let result = SysMLParser::parse(Rule::state_usage, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse ref state usage: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_abstract_ref_state_usage() {
+    // Test parsing "abstract ref state" which appears in Parts.sysml
+    let input = "abstract ref state exhibitedStates: StateAction[0..*] { }";
+
+    let result = SysMLParser::parse(Rule::state_usage, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse abstract ref state usage: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_ref_state_as_definition_body_item() {
+    // Test if ref state can be parsed as a definition_body_item
+    let input = "abstract ref state exhibitedStates: StateAction[0..*] { }";
+
+    let result = SysMLParser::parse(Rule::definition_body_item, input);
+    assert!(
+        result.is_ok(),
+        "Failed to parse ref state as definition_body_item: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_state_with_doc_comment() {
+    // Test state with doc comment - this is what fails in Parts.sysml
+    let input = r#"abstract ref state exhibitedStates: StateAction[0..*] {
+        doc
+        /*
+         * StateActions that are exhibited by this Part.
+         */
+    }"#;
+
+    let result = SysMLParser::parse(Rule::state_usage, input);
+    if let Err(e) = &result {
+        println!("ERROR: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse state with doc comment: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parse_constraint_with_doc_comment() {
+    // Test constraint with doc comment - this is what fails in Items.sysml
+    let input = r#"assert constraint {
+        doc
+        /*
+         * Test constraint
+         */
+        innerSpaceDimension == value
+    }"#;
+
+    let result = SysMLParser::parse(Rule::assert_constraint_usage, input);
+    if let Err(e) = &result {
+        println!("ERROR: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Failed to parse constraint with doc comment: {:?}",
+        result.err()
+    );
+}
+
 // Member Tests
 
 #[rstest]
@@ -4342,6 +4553,19 @@ fn test_parse_requirement_body(#[case] input: &str, #[case] desc: &str) {
 
 #[rstest]
 #[case("subject mySubject;", "subject usage")]
+#[case(
+    "subject subj default Case::result;",
+    "subject usage with default qualified value"
+)]
+#[case(
+    "subject subj default myValue;",
+    "subject usage with default simple value"
+)]
+#[case("subject subj : MyType;", "subject usage with typing")]
+#[case(
+    "subject subj : MyType default myValue;",
+    "subject usage with typing and default"
+)]
 fn test_parse_subject_usage(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::subject_usage, input);
 
@@ -4355,6 +4579,10 @@ fn test_parse_subject_usage(#[case] input: &str, #[case] desc: &str) {
 
 #[rstest]
 #[case("subject mySubject;", "subject member")]
+#[case(
+    "subject subj default Case::result;",
+    "subject member with default qualified value"
+)]
 fn test_parse_subject_member(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::subject_member, input);
 
@@ -4655,6 +4883,10 @@ fn test_parse_case_body(#[case] input: &str, #[case] desc: &str) {
 #[rstest]
 #[case("myObjective {}", "objective requirement usage with declaration")]
 #[case("{}", "objective requirement usage with empty body")]
+#[case(
+    "obj : RequirementCheck[1] { subject subj default Case::result; }",
+    "objective with subject and default value"
+)]
 fn test_parse_objective_requirement_usage(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::objective_requirement_usage, input);
 
@@ -4668,6 +4900,10 @@ fn test_parse_objective_requirement_usage(#[case] input: &str, #[case] desc: &st
 
 #[rstest]
 #[case("objective myObjective {}", "objective member")]
+#[case(
+    "objective obj : RequirementCheck[1] { subject subj default Case::result; }",
+    "objective member with subject and default value"
+)]
 fn test_parse_objective_member(#[case] input: &str, #[case] desc: &str) {
     let result = SysMLParser::parse(Rule::objective_member, input);
 

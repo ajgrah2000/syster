@@ -1,37 +1,41 @@
 use super::LspServer;
-use super::helpers::find_element_at_position;
 use std::path::PathBuf;
 use tower_lsp::lsp_types::{Position, Range};
 
 impl LspServer {
-    /// Find the symbol name and range at the given position by querying the AST
-    pub(super) fn find_symbol_at_position(
+    /// Find the symbol and range at the given position by querying the AST
+    pub fn find_symbol_at_position(
         &self,
         path: &PathBuf,
         position: Position,
     ) -> Option<(String, Range)> {
         use super::helpers::span_to_lsp_range;
-        use syster::core::Position as CorePosition;
 
-        // Get the SysML file from workspace
-        let workspace_file = self.workspace.files().get(path)?;
+        // Get document text to extract word at cursor
+        let source = self.document_texts.get(path)?;
 
-        // Only process SysML files for now
-        let file = match workspace_file.content() {
-            syster::syntax::SyntaxFile::SysML(sysml_file) => sysml_file,
-            syster::syntax::SyntaxFile::KerML(_) => return None,
-        };
+        let line = source.lines().nth(position.line as usize)?;
 
-        // Convert LSP position to our 0-indexed position
-        let core_pos = CorePosition::new(position.line as usize, position.character as usize);
+        let word =
+            syster::core::text_utils::extract_word_at_cursor(line, position.character as usize)?;
 
-        // Search elements for one containing this position
-        for element in &file.elements {
-            if let Some((name, span)) = find_element_at_position(element, core_pos) {
-                return Some((name, span_to_lsp_range(&span)));
-            }
+        // Try resolver first (works for qualified names and scope-aware lookups)
+        let resolver = self.resolver();
+        if let Some(symbol) = resolver.resolve(&word) {
+            let qualified_name = symbol.qualified_name().to_string();
+            let span = symbol.span()?;
+            return Some((qualified_name, span_to_lsp_range(&span)));
         }
 
+        // Fallback: search all symbols by simple name (for cross-scope references)
+        for (_key, symbol) in self.workspace.symbol_table().all_symbols() {
+            if symbol.name() == word {
+                let qualified_name = symbol.qualified_name().to_string();
+                if let Some(span) = symbol.span() {
+                    return Some((qualified_name, span_to_lsp_range(&span)));
+                }
+            }
+        }
         None
     }
 }

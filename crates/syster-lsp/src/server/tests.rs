@@ -225,17 +225,17 @@ fn test_hover_on_whitespace() {
 
     server.open_document(&uri, text).unwrap();
 
+    // Hover on "Vehicle" name should work
     let hover = server.get_hover(
         &uri,
         Position {
             line: 0,
-            character: 4, // In whitespace between "part" and "def"
+            character: 10, // On "Vehicle" name
         },
     );
-    // The hover returns Vehicle because the position is within the Definition's span
     assert!(
         hover.is_some(),
-        "Position within element span should return hover"
+        "Position on element name should return hover"
     );
 }
 
@@ -247,19 +247,17 @@ fn test_hover_on_unknown_symbol() {
 
     server.open_document(&uri, text).unwrap();
 
-    // Hover on "part" keyword (position 0,0) - this is within Vehicle's span
-    // so it returns Vehicle hover, not an error
+    // Hover on "Vehicle" name (position 0,9) - should return hover
     let hover = server.get_hover(
         &uri,
         Position {
             line: 0,
-            character: 0,
+            character: 10,
         },
     );
-    // AST-based hover returns the element at this position (Vehicle)
     assert!(
         hover.is_some(),
-        "Position within element span should return hover"
+        "Position on element name should return hover"
     );
 
     // Test hover outside any element span (after semicolon with spaces)

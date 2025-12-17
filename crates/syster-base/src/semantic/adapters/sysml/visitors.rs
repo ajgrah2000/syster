@@ -114,8 +114,11 @@ impl<'a> AstVisitor for SysmlAdapter<'a> {
             // Visit nested members in the body (add them to symbol table)
             self.enter_namespace(name.clone());
             for member in &definition.body {
-                if let crate::syntax::sysml::ast::enums::DefinitionMember::Usage(usage) = member {
-                    self.visit_usage(usage);
+                match member {
+                    crate::syntax::sysml::ast::enums::DefinitionMember::Usage(usage) => {
+                        self.visit_usage(usage);
+                    }
+                    crate::syntax::sysml::ast::enums::DefinitionMember::Comment(_) => {}
                 }
             }
             self.exit_namespace();

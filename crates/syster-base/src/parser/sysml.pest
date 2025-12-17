@@ -409,6 +409,7 @@ primary_expression = {
 base_expression = {
     null_expression
     | literal_expression
+    | invocation_expression
     | feature_reference_expression
     | "(" ~ sequence_expression ~ ")"
 }
@@ -422,7 +423,7 @@ literal_expression = {
 }
 
 feature_reference_expression = {
-    identifier
+    qualified_name
 }
 
 metadata_access_expression = {
@@ -822,6 +823,7 @@ state_body_part = {
 state_body_item = {
     import
     | alias_member_element
+    | visible_annotating_member
     | definition_member
     | variant_usage_member
     | non_occurrence_usage_member
@@ -893,6 +895,7 @@ action_body = {
 action_body_item = {
     import
     | alias_member_element
+    | visible_annotating_member
     | definition_member
     | variant_usage_member
     | non_occurrence_usage_member
@@ -1284,10 +1287,10 @@ case_body = {
 }
 
 case_body_item = {
-    case_calculation_body_item
+    objective_member
     | subject_member
     | actor_member
-    | objective_member
+    | case_calculation_body_item
 }
 
 case_calculation_body_item = {
@@ -1848,8 +1851,16 @@ constraint_usage_declaration = {
 assert_constraint_usage = {
     occurrence_usage_prefix ~ "assert" ~ "not"? ~ (
         owned_reference_subsetting ~ feature_specialization_part?
-        | constraint_usage_keyword ~ constraint_usage_declaration
-    ) ~ calculation_body
+        | constraint_usage_keyword ~ constraint_usage_declaration?
+    ) ~ constraint_body
+}
+
+constraint_body = {
+    ";" | "{" ~ constraint_body_part ~ "}"
+}
+
+constraint_body_part = {
+    visible_annotating_member* ~ owned_expression
 }
 
 // Requirement Usage
@@ -2259,5 +2270,5 @@ dependency = {
     ~ relationship_body
 }
 
-// Entry point - will expand as we add rules
-file = { SOI ~ WHITESPACE* ~ EOI }
+// Entry point
+file = { SOI ~ namespace_element* ~ EOI }
