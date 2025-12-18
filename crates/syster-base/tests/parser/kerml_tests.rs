@@ -982,9 +982,9 @@ fn test_parse_index_expression(#[case] input: &str) {
 // Body Structure Tests
 
 #[test]
-fn test_parse_textual_body() {
+fn test_parse_block_comment() {
     let input = "/* textual body */";
-    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::textual_body, input).unwrap();
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::block_comment, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), "/* textual body */");
 }
@@ -1059,6 +1059,8 @@ fn test_parse_specialization(#[case] input: &str) {
 #[case(":> BaseType")]
 #[case("subsets BaseClass")]
 #[case(":> Base::MyType")]
+#[case(":> Clock, Life")]
+#[case(":> Type1, Type2, Type3")]
 fn test_parse_subsetting(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::subsetting, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1069,6 +1071,8 @@ fn test_parse_subsetting(#[case] input: &str) {
 #[case(":>> BaseType")]
 #[case("redefines OldFeature")]
 #[case(":>> Base::Type")]
+#[case(":>> Collection::elements")]
+#[case(":>> Feature1, Feature2")]
 fn test_parse_redefinition(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::redefinition, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1126,6 +1130,7 @@ fn test_parse_differencing(#[case] input: &str) {
 #[rstest]
 #[case("intersects Type1")]
 #[case("intersects public Type2")]
+#[case("intersects VectorValue, Array")]
 fn test_parse_intersecting(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::intersecting, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1135,6 +1140,9 @@ fn test_parse_intersecting(#[case] input: &str) {
 #[rstest]
 #[case("chains feature1")]
 #[case("chains public feature2")]
+#[case("chains source.target")]
+#[case("chains a.b.c")]
+#[case("chains parent.child")]
 fn test_parse_feature_chaining(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature_chaining, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1180,6 +1188,10 @@ fn test_parse_type_featuring(#[case] input: &str) {
 #[rstest]
 #[case("typed by :> BaseType")]
 #[case(": specializes TypeSpec")]
+#[case(": Complex[1]")]
+#[case(": Boolean[1]")]
+#[case(": Anything[2]")]
+#[case(": String[0..*]")]
 fn test_parse_feature_typing(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature_typing, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1331,6 +1343,8 @@ fn test_parse_library_package(#[case] input: &str) {
 #[case("class MyClass;")]
 #[case("class MyClass {}")]
 #[case("abstract class MyClass;")]
+#[case("class MyClass specializes Base {}")]
+#[case("abstract class MyClass specializes Base, Other {}")]
 fn test_parse_class(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::class, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1340,6 +1354,9 @@ fn test_parse_class(#[case] input: &str) {
 #[rstest]
 #[case("datatype MyData;")]
 #[case("datatype MyData {}")]
+#[case("abstract datatype ScalarValue specializes DataValue;")]
+#[case("datatype Boolean specializes ScalarValue;")]
+#[case("datatype String specializes ScalarValue;")]
 fn test_parse_data_type(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::data_type, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1349,6 +1366,9 @@ fn test_parse_data_type(#[case] input: &str) {
 #[rstest]
 #[case("struct MyStruct;")]
 #[case("struct MyStruct {}")]
+#[case("struct MyStruct[1] :> Parent {}")]
+#[case("private struct MyStruct[0..1] specializes Base {}")]
+#[case("abstract struct MyStruct specializes Base, Other {}")]
 fn test_parse_structure(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::structure, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1358,6 +1378,8 @@ fn test_parse_structure(#[case] input: &str) {
 #[rstest]
 #[case("assoc MyAssoc;")]
 #[case("assoc MyAssoc {}")]
+#[case("abstract assoc Link specializes Anything {}")]
+#[case("assoc MyAssoc specializes Base {}")]
 fn test_parse_association(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::association, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1377,6 +1399,8 @@ fn test_parse_association_structure(#[case] input: &str) {
 #[rstest]
 #[case("behavior MyBehavior;")]
 #[case("behavior MyBehavior {}")]
+#[case("abstract behavior DecisionPerformance specializes Performance {}")]
+#[case("behavior MyBehavior specializes Base, Other {}")]
 fn test_parse_behavior(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::behavior, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
@@ -1898,6 +1922,10 @@ fn test_parse_root_namespace_with_multiple_elements() {
 #[rstest]
 #[case("null")]
 #[case("123")]
+#[case("size(dimensions)")]
+#[case("foo()")]
+#[case("max(a, b)")]
+#[case("calculate(x, y, z)")]
 fn test_parse_invocation_expression(#[case] input: &str) {
     let pairs =
         KerMLParser::parse(syster::parser::kerml::Rule::invocation_expression, input).unwrap();
@@ -1921,6 +1949,206 @@ fn test_parse_collect_expression(#[case] input: &str) {
 fn test_parse_select_expression(#[case] input: &str) {
     // select_expression is in inline_expression union
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::inline_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test feature with ordered/nonunique after typing
+#[rstest]
+#[case("feature dimensions: Positive[0..*] ordered nonunique { }")]
+#[case("feature x: Type ordered { }")]
+#[case("feature y: T nonunique { }")]
+#[case("feature z: T[1] ordered nonunique;")]
+fn test_parse_feature_with_modifiers_after_typing(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test feature value with expressions
+#[rstest]
+#[case("feature rank: Natural[1] = size(dimensions);")]
+#[case("feature x = 3;")]
+#[case("feature y = foo();")]
+fn test_parse_feature_value_with_expression(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test documentation with block comments
+#[rstest]
+#[case("doc /* This is documentation */")]
+#[case("doc /* Multi-line\n * documentation\n */")]
+#[case("doc /* Simple */ myId;")]
+fn test_parse_documentation(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::documentation, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test parameter membership (function parameters)
+#[rstest]
+#[case("in x: Anything[0..1];")]
+#[case("in y: Boolean[1];")]
+#[case("out result: Natural[1];")]
+#[case("inout value: Complex[0..*];")]
+fn test_parse_parameter_membership(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test return parameter membership
+#[rstest]
+#[case("return : Boolean[1];")]
+#[case("return result: Natural[1];")]
+#[case("return : Complex[1] = x + y;")]
+fn test_parse_return_parameter_membership(#[case] input: &str) {
+    let pairs = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    )
+    .unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test functions with quoted operator names
+#[rstest]
+#[case("function '==' { }")]
+#[case("function '!=' { }")]
+#[case("function '+' { }")]
+#[case("abstract function '-' { }")]
+fn test_parse_function_with_operator_name(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test complete function with parameters
+#[rstest]
+#[case("function '=='{ in x: Anything[0..1]; in y: Anything[0..1]; return : Boolean[1]; }")]
+#[case("function add { in a: Natural[1]; in b: Natural[1]; return : Natural[1]; }")]
+#[case(
+    "abstract function compare { in x: Anything[0..1]; in y: Anything[0..1]; return : Boolean[1]; }"
+)]
+fn test_parse_function_with_parameters(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test quoted identifiers
+#[rstest]
+#[case("'=='")]
+#[case("'!='")]
+#[case("'+'")]
+#[case("'-'")]
+#[case("'*'")]
+#[case("'/'")]
+#[case("'<'")]
+#[case("'>'")]
+#[case("'<='")]
+#[case("'>='")]
+fn test_parse_quoted_identifier(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::identifier, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test qualified references with quoted identifiers
+#[rstest]
+#[case("ScalarFunctions::'not'")]
+#[case("Base::'=='")]
+#[case("Math::'+'")]
+#[case("Ops::'*'::'nested'")]
+fn test_parse_qualified_reference_with_quotes(#[case] input: &str) {
+    let pairs = KerMLParser::parse(
+        syster::parser::kerml::Rule::qualified_reference_chain,
+        input,
+    )
+    .unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test function specialization with quoted names
+#[rstest]
+#[case("function 'not' specializes ScalarFunctions::'not' { }")]
+#[case("function 'xor' specializes Base::'xor' { }")]
+fn test_parse_function_specializes_quoted(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test invocation with numeric arguments
+#[rstest]
+#[case("rect(0.0, 1.0)")]
+#[case("polar(1.0, 3.14)")]
+#[case("add(42, 17)")]
+fn test_parse_invocation_with_numbers(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::invocation_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test feature with invocation value
+#[rstest]
+#[case("feature i: Complex[1] = rect(0.0, 1.0);")]
+#[case("feature x: Real[1] = sqrt(2.0);")]
+fn test_parse_feature_with_invocation_value(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test top-level feature (namespace feature member)
+#[rstest]
+#[case("feature i: Complex[1] = rect(0.0, 1.0);")]
+#[case("feature x: Natural[1] = 42;")]
+fn test_parse_namespace_feature_with_value(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::namespace_feature_member, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test feature with chaining relationship
+#[rstest]
+#[case("feature chain chains source.target;")]
+#[case("private feature chain chains source.target;")]
+fn test_parse_feature_with_chaining(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::feature, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test return parameter with default value
+#[rstest]
+#[case("return : Integer[1] default sum0(collection, 0);")]
+#[case("return : Boolean[1] default true;")]
+#[case("return result: Natural[1] default 0;")]
+fn test_parse_return_parameter_with_default(#[case] input: &str) {
+    let pairs = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    )
+    .unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test function with return default
+#[rstest]
+#[case(
+    "function sum { in collection: Integer[0..*]; return : Integer[1] default sum0(collection, 0); }"
+)]
+fn test_parse_function_with_return_default(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), input);
 }

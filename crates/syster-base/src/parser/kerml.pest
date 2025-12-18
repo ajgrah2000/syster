@@ -2,7 +2,7 @@
 // This will be incrementally expanded following TDD
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
-COMMENT = _{ line_comment }
+COMMENT = _{ block_comment | line_comment }
 
 line_comment = { "//" ~ (!"\n" ~ ANY)* }
 block_comment = { "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
@@ -42,7 +42,10 @@ keyword = @{
 }
 
 // Identifiers  
-identifier = @{ !(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+identifier = @{ 
+    unrestricted_name 
+    | (!(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")*)
+}
 
 // Identification fragments
 short_name = { "<" ~ name ~ ">" }
@@ -127,29 +130,19 @@ annotation = {
     element_reference
 }
 
-// Textual annotation body (block comment)
-textual_body = { block_comment }
-
 // Comment - can have 'about' annotations and locale
 comment = {
-    "comment" ~ identifier? ~
-    ("about" ~ annotation ~ ("," ~ annotation)*)? ~
-    ("locale" ~ string_value)? ~
-    textual_body
+    "comment" ~ block_comment? ~ (identifier ~ ";")?
 }
 
 // Documentation
 documentation = {
-    "doc" ~ identifier? ~
-    ("locale" ~ string_value)? ~
-    textual_body
+    "doc" ~ block_comment? ~ (identifier ~ ";")?
 }
 
 // Textual representation with language
 textual_representation = {
-    ("rep" ~ identification?)? ~
-    "language" ~ string_value ~
-    textual_body
+    "rep" ~ block_comment? ~ (identifier ~ ";")?
 }
 
 // Owned Annotations
@@ -330,10 +323,11 @@ classifier = {
 // DataType extends Classifier
 data_type = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "datatype" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -341,10 +335,11 @@ data_type = {
 // Class extends Classifier
 class = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "class" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -352,21 +347,23 @@ class = {
 // Structure extends Class
 structure = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "struct" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
-    multiplicity? ~
+    multiplicity_bounds? ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     namespace_body
 }
 
 // Behavior extends Class
 behavior = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "behavior" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -374,10 +371,11 @@ behavior = {
 // Association extends Classifier and Relationship
 association = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "assoc" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -388,7 +386,7 @@ association_structure = {
     abstract_marker? ~
     "assoc" ~ "struct" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -396,10 +394,11 @@ association_structure = {
 // Metaclass extends Structure
 metaclass = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "metaclass" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -407,10 +406,11 @@ metaclass = {
 // Function extends Behavior
 function = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "function" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     result_expression_membership? ~
     namespace_body
@@ -422,7 +422,7 @@ predicate = {
     abstract_marker? ~
     "predicate" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     result_expression_membership? ~
     namespace_body
@@ -431,10 +431,11 @@ predicate = {
 // Interaction extends Association and Behavior
 interaction = {
     prefix_metadata? ~
+    visibility_kind? ~
     abstract_marker? ~
     "interaction" ~ identification? ~
     "all"? ~
-    (inheritance | type_relationship | feature_relationship)* ~
+    (heritage | inheritance | type_relationship | feature_relationship)* ~
     multiplicity? ~
     namespace_body
 }
@@ -447,6 +448,7 @@ feature = {
     feature_modifier? ~
     "feature" ~ identification? ~
     multiplicity_bounds? ~
+    ("ordered" | "nonunique")* ~
     (heritage | type_relationship | feature_relationship)* ~
     ("ordered" | "nonunique")* ~
     feature_value? ~
@@ -629,17 +631,17 @@ differencing = {
 
 // Intersecting extends Relationship
 intersecting = {
-    "intersects" ~ relationship
+    "intersects" ~ relationship ~ ("," ~ relationship)*
 }
 
 // FeatureChaining extends Relationship
 feature_chaining = {
-    "chains" ~ relationship
+    "chains" ~ ((identifier ~ ("." ~ identifier)+) | qualified_reference_chain | relationship)
 }
 
 // Specialization extends Inheritance
 specialization = {
-    specializes_token ~ inheritance
+    specializes_token ~ inheritance ~ ("," ~ inheritance)*
 }
 
 // Disjoining extends Relationship
@@ -664,7 +666,7 @@ type_featuring = {
 
 // FeatureTyping extends Specialization
 feature_typing = {
-    typed_by_token ~ (specialization | (visibility_kind? ~ element_reference))
+    typed_by_token ~ (specialization | (visibility_kind? ~ element_reference)) ~ multiplicity_bounds?
 }
 
 // Subclassification extends Specialization
@@ -674,7 +676,7 @@ subclassification = {
 
 // Subsetting extends Specialization
 subsetting = {
-    subsets_token ~ inheritance
+    subsets_token ~ inheritance ~ ("," ~ inheritance)*
 }
 
 // Conjugation extends Inheritance
@@ -684,7 +686,7 @@ conjugation = {
 
 // Redefinition extends Subsetting
 redefinition = {
-    redefines_token ~ inheritance
+    redefines_token ~ inheritance ~ ("," ~ inheritance)*
 }
 
 // ReferenceSubsetting extends Subsetting
@@ -760,7 +762,7 @@ membership = {
 
 // OwningMembership extends Membership
 owning_membership = {
-    membership
+    inline_expression | membership
 }
 
 // FeatureValue extends OwningMembership
@@ -786,8 +788,9 @@ end_feature_membership = {
 }
 
 // ParameterMembership extends FeatureMembership
+// Simplified: direction identifier : type[mult] ;
 parameter_membership = {
-    feature_membership
+    feature_direction_kind ~ identifier ~ feature_typing ~ ";"
 }
 
 // ResultExpressionMembership extends FeatureMembership
@@ -796,8 +799,9 @@ result_expression_membership = {
 }
 
 // ReturnParameterMembership extends ParameterMembership
+// Simplified: return : type[mult] default expr ;
 return_parameter_membership = {
-    parameter_membership
+    "return" ~ identifier? ~ feature_typing ~ (("=" | "default") ~ inline_expression)? ~ ";"
 }
 
 // References
@@ -882,8 +886,8 @@ operator_expression = {
 
 // InvocationExpression - function/feature invocation
 invocation_expression = {
-    // Placeholder: Will be expanded with invocation syntax
-    operator_expression
+    (identifier ~ "(" ~ (inline_expression ~ ("," ~ inline_expression)*)? ~ ")")
+    | operator_expression
 }
 
 // FeatureChainExpression - chained feature access (e.g., a.b.c)
@@ -1036,6 +1040,8 @@ namespace_body_element = {
     import
     | alias_member
     | annotating_member
+    | parameter_membership
+    | return_parameter_membership
     | non_feature_member
     | namespace_feature_member
     | relationship_member

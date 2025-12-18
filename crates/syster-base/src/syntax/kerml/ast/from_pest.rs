@@ -60,11 +60,7 @@ impl_from_pest!(Comment, |pest| {
         return Err(ConversionError::NoMatch);
     }
     let span = Some(pest_span_to_span(pair.as_span()));
-    let content = pair
-        .into_inner()
-        .find(|p| p.as_rule() == Rule::textual_body)
-        .map(|p| p.as_str().to_string())
-        .unwrap_or_default();
+    let content = pair.as_str().to_string();
     Ok(Comment {
         content,
         about: Vec::new(),
@@ -79,11 +75,7 @@ impl_from_pest!(Documentation, |pest| {
         return Err(ConversionError::NoMatch);
     }
     let span = Some(pest_span_to_span(pair.as_span()));
-    let content = pair
-        .into_inner()
-        .find(|p| p.as_rule() == Rule::textual_body)
-        .map(|p| p.as_str().to_string())
-        .unwrap_or_default();
+    let content = pair.as_str().to_string();
     let comment_span = span;
     Ok(Documentation {
         comment: Comment {
