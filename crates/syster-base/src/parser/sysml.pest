@@ -524,7 +524,9 @@ literal = {
 null_literal = @{ "null" ~ !(ASCII_ALPHANUMERIC | "_") }
 
 string_value = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
-numeric_value = @{ "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? }
+numeric_value = @{ 
+    "-"? ~ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT+)? ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
 boolean_value = @{ ("true" | "false") ~ !(ASCII_ALPHANUMERIC | "_") }
 
 alias_member_element = {

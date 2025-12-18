@@ -1163,6 +1163,49 @@ fn test_constraint_with_in_parameter() {
 }
 
 #[test]
+fn test_scientific_notation_negative_exponent() {
+    let result = SysMLParser::parse(Rule::owned_expression, "1E-24");
+    assert!(
+        result.is_ok(),
+        "Failed to parse scientific notation with negative exponent: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_scientific_notation_positive_exponent() {
+    let result = SysMLParser::parse(Rule::owned_expression, "1E24");
+    assert!(
+        result.is_ok(),
+        "Failed to parse scientific notation with positive exponent: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_scientific_notation_lowercase() {
+    let result = SysMLParser::parse(Rule::owned_expression, "1e-24");
+    assert!(
+        result.is_ok(),
+        "Failed to parse scientific notation lowercase e: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_attribute_with_scientific_notation_value() {
+    let result = SysMLParser::parse(
+        Rule::attribute_usage,
+        "attribute yocto { :>> conversionFactor = 1E-24; }",
+    );
+    assert!(
+        result.is_ok(),
+        "Failed to parse attribute with scientific notation value: {:?}",
+        result.err()
+    );
+}
+
+#[test]
 fn test_qualified_name_with_unicode_theta_as_owned_expression() {
     let result = SysMLParser::parse(Rule::owned_expression, "isq.'Θ'");
     assert!(
