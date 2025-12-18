@@ -176,3 +176,181 @@ fn test_feature_value_with_lambda() {
         result.err()
     );
 }
+
+#[test]
+fn test_calculation_body_minimal() {
+    let input = "{ vals#(i) }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse minimal calculation body: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_with_parameter_binding() {
+    let input = "{ in i; vals#(i) }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation body with parameter binding: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_with_typed_parameter() {
+    let input = "{ in i : Positive; vals#(i) }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation body with typed parameter: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_with_parameter_declaration() {
+    // This is the failing case from SampledFunctions.sysml line 53
+    let input = "{ in fn : SampledFunction; }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation body with parameter declaration: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_expression_body_with_parameter() {
+    let input = "{ in i; vals#(i) }";
+    let result = SysMLParser::parse(Rule::expression_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse expression body with parameter: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parameter_binding_simple() {
+    let input = "in i";
+    let result = SysMLParser::parse(Rule::parameter_binding, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse simple parameter binding: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_parameter_binding_typed() {
+    let input = "in fn : SampledFunction";
+    let result = SysMLParser::parse(Rule::parameter_binding, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse typed parameter binding: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_with_param_and_return() {
+    // Exact pattern from SampledFunctions.sysml Domain calc def
+    let input = "{ in fn : SampledFunction; return : Anything[0..*] = fn.samples.domainValue; }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calc body with param and return: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_def_domain() {
+    // Full Domain calc def from SampledFunctions.sysml
+    let input = r#"calc def Domain {
+        in fn : SampledFunction;
+        return : Anything[0..*] = fn.samples.domainValue;
+    }"#;
+    let result = SysMLParser::parse(Rule::calculation_definition, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse Domain calc def: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_parameter_member() {
+    let input = "return : Anything[0..*] = fn.samples.domainValue";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return_parameter_member: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_parameter_member_with_semicolon() {
+    let input = "return : Anything[0..*] = fn.samples.domainValue;";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    // Should consume everything EXCEPT the semicolon
+    match result {
+        Ok(mut pairs) => {
+            let pair = pairs.next().unwrap();
+            let consumed = pair.as_str();
+            assert_eq!(consumed, "return : Anything[0..*] = fn.samples.domainValue");
+        }
+        Err(e) => panic!("Failed to parse: {:?}", e),
+    }
+}
+
+#[test]
+fn test_calculation_body_item_return() {
+    let input = "return : Anything[0..*] = fn.samples.domainValue;";
+    let result = SysMLParser::parse(Rule::calculation_body_item, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation_body_item with return: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_part_with_param_and_return() {
+    let input = "in fn : SampledFunction; return : Anything[0..*] = fn.samples.domainValue;";
+    let result = SysMLParser::parse(Rule::calculation_body_part, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation_body_part: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_braces() {
+    let input = "{ in fn : SampledFunction; return : Anything[0..*] = fn.samples.domainValue; }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation_body with braces: {:?}",
+        result.err()
+    );
+}
