@@ -1390,3 +1390,16 @@ fn test_attribute_with_multiplicity_default_and_body() {
         result.err()
     );
 }
+
+#[test]
+fn test_interface_usage_with_nonunique() {
+    let result = SysMLParser::parse(
+        Rule::interface_usage,
+        "abstract interface interfaces: Interface[0..*] nonunique :> connections { }",
+    );
+    assert!(
+        result.is_ok(),
+        "Failed to parse interface usage with nonunique: {:?}",
+        result.err()
+    );
+}

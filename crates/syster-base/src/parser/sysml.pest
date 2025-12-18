@@ -740,12 +740,13 @@ interface_body = {
 }
 
 interface_body_item = {
-    definition_member
+    import
+    | alias_member_element
+    | visible_annotating_member
+    | definition_member
     | variant_usage_member
     | interface_non_occurrence_usage_member
     | empty_succession_member? ~ interface_occurrence_usage_member
-    | alias_member_element
-    | import
 }
 
 interface_non_occurrence_usage_member = {
@@ -783,6 +784,7 @@ interface_usage = {
 
 interface_usage_declaration = {
     usage_declaration? ~ connector_keyword ~ interface_part
+    | usage_declaration
     | interface_part
 }
 
