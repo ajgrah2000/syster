@@ -495,6 +495,23 @@ fn test_relational_operators_ordering(#[case] input: &str, #[case] operator: &st
 }
 
 #[test]
+fn test_return_attribute_with_body() {
+    let input = r#"return attribute result : ScalarValue[1] {
+        doc
+        /*
+         * A comment
+         */
+    }"#;
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return attribute with body: {:?}",
+        result.err()
+    );
+}
+
+#[test]
 fn test_complex_relational_expression() {
     // Test complex expression with collection indexing and relational operator
     let input = "domainValues#(i) <= value";

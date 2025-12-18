@@ -1181,7 +1181,7 @@ calculation_body_part = {
 }
 
 calculation_body_item = {
-    return_parameter_member ~ ";"
+    return_parameter_member
     | visible_annotating_member
     | parameter_binding ~ ";"
     | import
@@ -1194,7 +1194,7 @@ calculation_body_item = {
 }
 
 return_parameter_member = {
-    member_prefix ~ "return" ~ "attribute"? ~ (identification ~ feature_specialization_part? | feature_specialization_part)? ~ value_part?
+    member_prefix ~ "return" ~ "attribute"? ~ (identification ~ feature_specialization_part? | feature_specialization_part)? ~ (value_part | usage_body)?
 }
 
 result_expression_member = {
