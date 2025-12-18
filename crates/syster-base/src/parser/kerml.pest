@@ -76,7 +76,7 @@ derived = { "derived" }
 end_marker = { "end" }
 feature_modifier = { readonly | derived | end_marker }
 sufficient = { "all" }
-standard = { "standard" }
+standard_marker = { "standard" }
 import_all = { "all" }
 
 multiplicity_properties = {
@@ -596,9 +596,11 @@ package = {
 
 // LibraryPackage extends Package
 library_package = {
-    prefix_metadata? ~
-    "library" ~ "standard"? ~ "package" ~ identification? ~
-    namespace_body
+    standard_marker?
+    ~ "library"
+    ~ prefix_metadata?
+    ~ "package" ~ identification?
+    ~ namespace_body
 }
 
 // Relationships
@@ -1045,5 +1047,16 @@ root_namespace = {
     SOI ~ namespace_body_elements ~ EOI
 }
 
-// Entry point - will expand as we add rules
-file = { SOI ~ WHITESPACE* ~ EOI }
+// Entry point for parsing KerML files
+file = { SOI ~ namespace_element* ~ EOI }
+
+namespace_element = {
+    package
+    | library_package
+    | import
+    | alias_member
+    | annotating_member
+    | non_feature_member
+    | namespace_feature_member
+    | relationship_member
+}

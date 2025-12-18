@@ -1,5 +1,5 @@
 use super::enums::{ClassifierKind, Element, FeatureDirection, ImportKind};
-use super::types::{Annotation, Classifier, Comment, Feature, Import, Package};
+use super::types::{Annotation, Classifier, Comment, Feature, Import, KerMLFile, Package};
 use crate::core::Span;
 use crate::parser::kerml::Rule;
 use crate::syntax::kerml::model::types::Documentation;
@@ -229,5 +229,24 @@ impl_from_pest!(Element, |pest| {
         }),
         Rule::import => Element::Import(Import::from_pest(&mut pair.into_inner())?),
         _ => return Err(ConversionError::NoMatch),
+    })
+});
+
+impl_from_pest!(KerMLFile, |pest| {
+    let mut elements = Vec::new();
+    let namespace = None;
+
+    for pair in pest {
+        if pair.as_rule() == Rule::namespace_element {
+            let mut inner = pair.into_inner();
+            if let Ok(element) = Element::from_pest(&mut inner) {
+                elements.push(element);
+            }
+        }
+    }
+
+    Ok(KerMLFile {
+        namespace,
+        elements,
     })
 });

@@ -888,7 +888,7 @@ fn test_parse_end_marker() {
 #[test]
 fn test_parse_standard() {
     let input = "standard";
-    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::standard, input).unwrap();
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::standard_marker, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), "standard");
 }
@@ -1319,7 +1319,7 @@ fn test_parse_package(#[case] input: &str) {
 
 #[rstest]
 #[case("library package LibPkg;")]
-#[case("library standard package StdLib;")]
+#[case("standard library package StdLib;")]
 #[case("library package MyLib {}")]
 fn test_parse_library_package(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::library_package, input).unwrap();

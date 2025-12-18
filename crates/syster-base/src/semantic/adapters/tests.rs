@@ -512,7 +512,10 @@ fn test_populate_kerml_file_returns_unsupported_error() {
     let mut table = SymbolTable::new();
     let mut graph = RelationshipGraph::new();
 
-    let kerml_file = KerMLFile { elements: vec![] };
+    let kerml_file = KerMLFile {
+        namespace: None,
+        elements: vec![],
+    };
 
     let syntax_file = SyntaxFile::KerML(kerml_file);
     let result = populate_syntax_file(&syntax_file, &mut table, &mut graph);

@@ -1,7 +1,6 @@
 use crate::core::constants::{KERML_EXT, SYSML_EXT};
 use crate::core::{ParseError, ParseResult, get_extension, load_file, validate_extension};
 use crate::syntax::SyntaxFile;
-use crate::syntax::kerml::KerMLFile;
 use std::path::{Path, PathBuf};
 
 /// Loads and parses a language file (SysML or KerML) based on file extension.
@@ -22,8 +21,8 @@ pub fn load_and_parse(path: &PathBuf) -> Result<SyntaxFile, String> {
             Ok(SyntaxFile::SysML(file))
         }
         KERML_EXT => {
-            // TODO: Implement KerML parser - currently returns empty placeholder
-            Ok(SyntaxFile::KerML(KerMLFile::empty()))
+            let file = crate::syntax::kerml::parser::parse_content(&content, path)?;
+            Ok(SyntaxFile::KerML(file))
         }
         _ => unreachable!("validate_extension should have caught this"),
     }
@@ -45,8 +44,8 @@ pub fn parse_content(content: &str, path: &Path) -> Result<SyntaxFile, String> {
             Ok(SyntaxFile::SysML(file))
         }
         KERML_EXT => {
-            // TODO: Implement KerML parser - currently returns empty placeholder
-            Ok(SyntaxFile::KerML(KerMLFile::empty()))
+            let file = crate::syntax::kerml::parser::parse_content(content, path)?;
+            Ok(SyntaxFile::KerML(file))
         }
         _ => unreachable!("validate_extension should have caught this"),
     }
@@ -71,8 +70,11 @@ pub fn parse_with_result(content: &str, path: &Path) -> ParseResult<SyntaxFile> 
             }
         }
         KERML_EXT => {
-            // TODO: Implement KerML parser - currently returns empty placeholder
-            ParseResult::success(SyntaxFile::KerML(KerMLFile::empty()))
+            let result = crate::syntax::kerml::parser::parse_with_result(content, path);
+            match result.content {
+                Some(file) => ParseResult::success(SyntaxFile::KerML(file)),
+                None => ParseResult::with_errors(result.errors),
+            }
         }
         _ => {
             let error = ParseError::syntax_error("Unsupported file extension", 0, 0);
