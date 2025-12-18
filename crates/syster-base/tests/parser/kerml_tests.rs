@@ -2580,3 +2580,43 @@ fn test_parse_connector_from_to_endpoints() {
     let result = KerMLParser::parse(syster::parser::kerml::Rule::connector, input);
     assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 }
+// Test return feature parameter
+#[test]
+fn test_parse_return_feature_parameter() {
+    let input =
+        "return feature changeSignal : ChangeSignal[1] = new ChangeSignal(condition, monitor) {}";
+    let result = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    );
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test end feature with multiplicity first: end [1] feature name ...
+#[test]
+fn test_parse_end_feature_mult_first() {
+    let input = "end [1] feature transferSource references source;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::end_feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test abstract flow with typed feature pattern
+#[test]
+fn test_parse_abstract_flow() {
+    let input = "abstract flow flowTransfers: FlowTransfer[0..*] nonunique subsets transfers {}";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::item_flow, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test istype operator in expression
+#[test]
+fn test_parse_istype_operator() {
+    let input = "subp istype StatePerformance";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test end feature with relationships before feature keyword
+#[test]
+fn test_parse_end_feature_with_relationships_before_feature() {
+    let input = "end happensWhile [1..*] subsets timeCoincidentOccurrences feature thatOccurrence: Occurrence redefines longerOccurrence;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::end_feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}

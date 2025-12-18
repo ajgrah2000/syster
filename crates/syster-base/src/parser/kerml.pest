@@ -463,11 +463,14 @@ feature = {
     namespace_body
 }
 
-// End feature with identification and multiplicity: end <id> [mult] feature ...
+// End feature with identification and multiplicity: end <id> [mult] feature ... or end [mult] feature <id> ...
 end_feature = {
     prefix_metadata? ~
-    end_marker ~ identification ~ multiplicity_bounds ~ "feature" ~ identification? ~
-    feature_specialization_part? ~
+    end_marker ~ (
+        identification ~ multiplicity_bounds ~ feature_specialization_part? ~ "feature" ~ identification? ~ feature_specialization_part?  // end name [mult] relationships? feature ...
+        | identification ~ feature_specialization_part ~ "feature" ~ identification? ~ feature_specialization_part?                       // end name relationships feature ...
+        | multiplicity_bounds ~ "feature" ~ identification? ~ feature_specialization_part?                                                // end [mult] feature name ...
+    ) ~
     feature_value? ~
     namespace_body
 }
@@ -626,8 +629,17 @@ expression = {
 
 // ItemFlow extends Connector and Step
 item_flow = {
-    "flow" ~ connector ~
-    feature_membership?
+    ("abstract" | "composite" | "portion")? ~
+    "flow" ~ (
+        "all"? ~ multiplicity_bounds? ~ identification? ~
+        feature_specialization_part? ~
+        ("from" ~ connector_endpoint)? ~
+        ("to" ~ connector_endpoint)? ~
+        ("ordered" | "nonunique")* ~
+        feature_value? ~
+        end_feature_membership* ~
+        (namespace_body | feature_membership?)
+    )
 }
 
 // SuccessionItemFlow extends ItemFlow and Succession
@@ -878,7 +890,7 @@ result_expression_membership = {
 // ReturnParameterMembership extends ParameterMembership
 // Simplified: return : type[mult] default expr ;
 return_parameter_membership = {
-    "return" ~ (
+    "return" ~ "feature"? ~ (
         identifier ~ parameter_specialization_part? ~ (("=" | "default") ~ inline_expression)?
         | parameter_specialization_part ~ (("=" | "default") ~ inline_expression)?
     ) ~ (namespace_body | ";")
@@ -1004,9 +1016,9 @@ equality_expression = {
     classification_expression ~ (equality_operator ~ classification_expression)*
 }
 
-// Classification Expressions (as operator for type casting)
+// Classification Expressions (as/istype/hastype operators for type operations)
 classification_expression = {
-    relational_expression ~ (as_operator ~ type_reference)?
+    relational_expression ~ ((as_operator | classification_test_operator) ~ type_reference)?
 }
 
 as_operator = @{ "as" ~ !(ASCII_ALPHANUMERIC | "_") }
@@ -1069,9 +1081,14 @@ collect_operation_args = {
 primary_expression = {
     "(" ~ operator_expression ~ ("," ~ operator_expression)* ~ ")"
     | invocation_primary
+    | feature_reference_creation
     | literal_expression
     | null_expression
     | feature_reference_expression
+}
+
+feature_reference_creation = {
+    "new" ~ qualified_reference_chain ~ "(" ~ (operator_expression ~ ("," ~ operator_expression)*)? ~ ")"
 }
 
 invocation_primary = {
