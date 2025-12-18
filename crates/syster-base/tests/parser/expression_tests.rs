@@ -1416,3 +1416,16 @@ fn test_flow_usage_with_nonunique() {
         result.err()
     );
 }
+
+#[test]
+fn test_in_parameter_with_default_block() {
+    let result = SysMLParser::parse(
+        Rule::definition_body_item,
+        "in whileTest default {true} { }",
+    );
+    assert!(
+        result.is_ok(),
+        "Failed to parse in parameter with default block: {:?}",
+        result.err()
+    );
+}

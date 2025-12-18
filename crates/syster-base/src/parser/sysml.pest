@@ -424,6 +424,7 @@ base_expression = {
     | instantiation_expression
     | invocation_expression
     | feature_reference_expression
+    | expression_body
     | "(" ~ sequence_expression? ~ ")"
 }
 
