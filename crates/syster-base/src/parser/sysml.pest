@@ -299,7 +299,7 @@ equality_expression = {
 }
 
 equality_operator = {
-    "==" | "!=" | "===" | "!=="
+    "===" | "!==" | "==" | "!="
 }
 
 // Classification Expressions
@@ -1184,7 +1184,13 @@ calculation_body_item = {
     return_parameter_member ~ ";"
     | visible_annotating_member
     | parameter_binding ~ ";"
-    | action_body_item
+    | import
+    | alias_member_element
+    | definition_member
+    | variant_usage_member
+    | non_occurrence_usage_member  
+    | structure_usage_member
+    | behavior_usage_member
 }
 
 return_parameter_member = {

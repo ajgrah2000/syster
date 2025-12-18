@@ -506,3 +506,145 @@ fn test_complex_relational_expression() {
         result.err()
     );
 }
+
+#[rstest]
+#[case("a == b", "==")]
+#[case("a === b", "===")]
+#[case("a != b", "!=")]
+#[case("a !== b", "!==")]
+fn test_equality_operators(#[case] input: &str, #[case] operator: &str) {
+    let result = SysMLParser::parse(Rule::equality_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse {} operator: {:?}",
+        operator,
+        result.err()
+    );
+}
+
+#[test]
+fn test_equality_expression_with_member_access() {
+    let input = "stateSpace.order == order";
+    let result = SysMLParser::parse(Rule::equality_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse equality expression with member access: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_constraint_usage_with_expression() {
+    let input = "constraint { stateSpace.order == order }";
+    let result = SysMLParser::parse(Rule::constraint_usage, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse constraint usage with expression: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_part_simple_expression() {
+    let input = "a == b";
+    let result = SysMLParser::parse(Rule::calculation_body_part, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse simple expression as calculation_body_part: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_action_body_item_identifier() {
+    // This should fail or match as a usage
+    let input = "a";
+    let result = SysMLParser::parse(Rule::action_body_item, input);
+
+    println!("action_body_item('a') result: {:?}", result);
+}
+
+#[test]
+fn test_calculation_body_item_identifier() {
+    // This should fail or match as a usage
+    let input = "a";
+    let result = SysMLParser::parse(Rule::calculation_body_item, input);
+
+    println!("calculation_body_item('a') result: {:?}", result);
+}
+
+#[test]
+fn test_calculation_body_with_simple_expression() {
+    let input = "{ a == b }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation body with simple expression: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_def_with_expression_body() {
+    let input = "calc def Test { a == b }";
+    let result = SysMLParser::parse(Rule::calculation_definition, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calc def with expression body: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_conditional_expression_simple_equality() {
+    let input = "a == b";
+    let result = SysMLParser::parse(Rule::conditional_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse simple equality as conditional_expression: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_owned_expression_simple_equality() {
+    let input = "a == b";
+    let result = SysMLParser::parse(Rule::owned_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse simple equality as owned_expression: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_result_expression_member_simple_equality() {
+    let input = "a == b";
+    let result = SysMLParser::parse(Rule::result_expression_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse simple equality as result_expression_member: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_with_equality_expression() {
+    let input = "return a == b";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return with equality expression: {:?}",
+        result.err()
+    );
+}
