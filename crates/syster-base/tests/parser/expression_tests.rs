@@ -1,6 +1,7 @@
 #![allow(clippy::unwrap_used)]
 
 use pest::Parser;
+use rstest::rstest;
 use syster::parser::{SysMLParser, sysml::Rule};
 
 #[test]
@@ -351,6 +352,157 @@ fn test_calculation_body_braces() {
     assert!(
         result.is_ok(),
         "Failed to parse calculation_body with braces: {:?}",
+        result.err()
+    );
+}
+
+#[rstest]
+#[case("in")]
+#[case("out")]
+#[case("return")]
+#[case("attribute")]
+#[case("calc")]
+#[case("action")]
+fn test_identifier_excludes_keywords(#[case] keyword: &str) {
+    let result = SysMLParser::parse(Rule::identifier, keyword);
+    assert!(
+        result.is_err(),
+        "Keyword '{}' should not parse as identifier",
+        keyword
+    );
+}
+
+#[rstest]
+#[case("myVar")]
+#[case("calculation1")]
+#[case("result_value")]
+#[case("InCamelCase")]
+fn test_identifier_allows_valid_names(#[case] ident: &str) {
+    let result = SysMLParser::parse(Rule::identifier, ident);
+    assert!(
+        result.is_ok(),
+        "Valid identifier '{}' should parse: {:?}",
+        ident,
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_item_without_semicolon() {
+    // Calculation usage without trailing semicolon should parse
+    let input = "in calc calculation { in x; }";
+    let result = SysMLParser::parse(Rule::calculation_body_item, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation_body_item without trailing semicolon: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_item_attribute_with_semicolon() {
+    // Attribute usage with trailing semicolon should parse
+    let input = "in attribute domainValues [0..*];";
+    let result = SysMLParser::parse(Rule::calculation_body_item, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse attribute usage in calculation_body_item: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_calculation_body_mixed_items() {
+    // Test a complete calculation body with mixed items
+    let input = "{ in calc calculation { in x; } in attribute domainValues [0..*]; return sampling = value; }";
+    let result = SysMLParser::parse(Rule::calculation_body, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse calculation_body with mixed items: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_parameter_member_with_name() {
+    // Return with identifier name
+    let input = "return sampling = new SampledFunction()";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return_parameter_member with name: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_parameter_member_with_name_and_type() {
+    // Return with identifier, type, and value
+    let input = "return result: StateSpace = value";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return_parameter_member with name and type: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_attribute_member() {
+    // Return attribute without value
+    let input = "return attribute result";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return attribute member: {:?}",
+        result.err()
+    );
+}
+
+#[test]
+fn test_return_attribute_member_with_type() {
+    // Return attribute with type and body
+    let input = "return attribute result : ScalarValue[1]";
+    let result = SysMLParser::parse(Rule::return_parameter_member, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse return attribute member with type: {:?}",
+        result.err()
+    );
+}
+
+#[rstest]
+#[case("a <= b", "<=")]
+#[case("a >= b", ">=")]
+#[case("a < b", "<")]
+#[case("a > b", ">")]
+fn test_relational_operators_ordering(#[case] input: &str, #[case] operator: &str) {
+    let result = SysMLParser::parse(Rule::relational_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse {} operator: {:?}",
+        operator,
+        result.err()
+    );
+}
+
+#[test]
+fn test_complex_relational_expression() {
+    // Test complex expression with collection indexing and relational operator
+    let input = "domainValues#(i) <= value";
+    let result = SysMLParser::parse(Rule::relational_expression, input);
+
+    assert!(
+        result.is_ok(),
+        "Failed to parse complex relational expression: {:?}",
         result.err()
     );
 }

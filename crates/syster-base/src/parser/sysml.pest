@@ -36,7 +36,7 @@ keyword = @{
 }
 
 // Identifiers
-identifier = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+identifier = @{ !(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
 
 // Tokens
 
@@ -344,7 +344,7 @@ relational_expression = {
 }
 
 relational_operator = {
-    "<" | ">" | "<=" | ">="
+    "<=" | ">=" | "<" | ">"
 }
 
 // Range Expressions
@@ -1181,13 +1181,14 @@ calculation_body_part = {
 }
 
 calculation_body_item = {
-    (return_parameter_member | action_body_item) ~ ";"
+    return_parameter_member ~ ";"
     | visible_annotating_member
-    | (parameter_binding ~ ";")
+    | parameter_binding ~ ";"
+    | action_body_item
 }
 
 return_parameter_member = {
-    member_prefix ~ "return" ~ feature_specialization_part? ~ value_part?
+    member_prefix ~ "return" ~ "attribute"? ~ (identification ~ feature_specialization_part? | feature_specialization_part)? ~ value_part?
 }
 
 result_expression_member = {
