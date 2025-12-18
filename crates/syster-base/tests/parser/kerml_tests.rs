@@ -1926,6 +1926,8 @@ fn test_parse_root_namespace_with_multiple_elements() {
 #[case("foo()")]
 #[case("max(a, b)")]
 #[case("calculate(x, y, z)")]
+#[case("NumericalFunctions::sum0(x, y)")]
+#[case("Namespace::Nested::func(a)")]
 fn test_parse_invocation_expression(#[case] input: &str) {
     let pairs =
         KerMLParser::parse(syster::parser::kerml::Rule::invocation_expression, input).unwrap();
@@ -1993,6 +1995,8 @@ fn test_parse_documentation(#[case] input: &str) {
 #[case("in y: Boolean[1];")]
 #[case("out result: Natural[1];")]
 #[case("inout value: Complex[0..*];")]
+#[case("in x: Anything[0..*] nonunique;")]
+#[case("in x: Anything[0..*] ordered;")]
 fn test_parse_parameter_membership(#[case] input: &str) {
     let pairs =
         KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input).unwrap();
@@ -2165,6 +2169,10 @@ fn test_parse_function_with_return_default(#[case] input: &str) {
 #[case("x - y")]
 #[case("x * y")]
 #[case("x / y")]
+#[case("x and y")]
+#[case("x or y")]
+#[case("x xor y")]
+#[case("a == b and c == d")]
 fn test_parse_binary_expression(#[case] input: &str) {
     let pairs =
         KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
@@ -2198,4 +2206,377 @@ fn test_parse_function_with_range_operator(#[case] input: &str) {
     let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), input);
+}
+
+// Test conditional expressions
+#[rstest]
+#[case("if true ? 1 else 0")]
+#[case("if x > 5 ? 'yes' else 'no'")]
+#[case("if isEmpty(seq)? 0 else size(tail(seq)) + 1")]
+fn test_parse_conditional_expression(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test tuple literals
+#[rstest]
+#[case("(a, b)")]
+#[case("(1, 2, 3)")]
+#[case("(seq1, seq2)")]
+fn test_parse_tuple_expression(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test null coalescing operator
+#[rstest]
+#[case("x ?? 0")]
+#[case("dimensions->reduce '*' ?? 1")]
+fn test_parse_null_coalescing(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test arrow operator for collections
+#[rstest]
+#[case("col->reduce '+' ?? zero")]
+#[case("collection->select {in x; x > 0}")]
+#[case("col.elements->equals(other.elements)")]
+#[case("coll->collect{in i : Positive; v#(i) + w#(i)}")]
+fn test_parse_collection_operators(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test as operator for type casting
+#[rstest]
+#[case("x as Integer")]
+#[case("(col.elements as Anything)#(index)")]
+fn test_parse_as_operator(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test character literals
+#[rstest]
+#[case("'*'")]
+#[case("'+'")]
+#[case("'a'")]
+fn test_parse_char_literal(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::literal_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test parameters with default values
+#[rstest]
+#[case("in x: Integer[1] default 0;")]
+#[case("in endIndex: Positive[1] default startIndex;")]
+fn test_parse_parameter_with_default(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test expression parameters
+#[rstest]
+#[case("in expr thenValue[0..1] { return : Anything[0..*] ordered nonunique; }")]
+#[case("in step myStep { in x: Integer[1]; }")]
+fn test_parse_expression_parameters(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test case_22 failure: shorthand feature with typing and redefinition
+#[test]
+fn test_parse_feature_with_typing_and_redefinition() {
+    let input = "private thisClock : Clock :>> self;";
+    // This should parse as a namespace_body_element
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::namespace_body_element, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test lambda parameter without trailing semicolon
+#[test]
+fn test_parse_lambda_parameter_no_semicolon() {
+    let input = "snapshots->forAll{in s : Clock; TimeOf(s, thisClock) == s.currentTime}";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test invariant with doc and expression body
+#[test]
+fn test_parse_invariant_with_doc_and_expression() {
+    let input = r#"inv timeFlowConstraint {
+        doc /* comment */
+        snapshots->forAll{in s : Clock; TimeOf(s, thisClock) == s.currentTime}
+    }"#;
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::invariant, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test implies operator
+#[test]
+fn test_parse_implies_operator() {
+    let input = "w == null or isZeroVector(w) implies u == w";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test invariant with implies in body
+#[test]
+fn test_parse_invariant_with_implies() {
+    let input = "inv zeroAddition { w == null or isZeroVector(w) implies u == w }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::invariant, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test feature with ordered/nonunique before subsetting
+#[test]
+fn test_parse_feature_with_multiplicity_props_before_subsetting() {
+    let input = "abstract feature dataValues: DataValue[0..*] nonunique subsets things { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test parameter with identifier in multiplicity bounds and ordered/nonunique after
+#[test]
+fn test_parse_parameter_with_identifier_multiplicity() {
+    let input = "in indexes: Positive[n] ordered nonunique;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test return parameter with body
+#[test]
+fn test_parse_return_parameter_with_body() {
+    let input = "return : NumericalVectorValue[1] { }";
+    let result = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    );
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test multiplicity with identification and bounds
+#[test]
+fn test_parse_multiplicity_with_identification_and_bounds() {
+    let input = "multiplicity exactlyOne [1..1] { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::multiplicity, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test feature with var modifier
+#[test]
+fn test_parse_feature_with_var_modifier() {
+    let input =
+        "derived var feature annotatedElement : Element[1..*] ordered redefines annotatedElement;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test shorthand feature with redefinition and default value
+#[test]
+fn test_parse_shorthand_feature_with_redefines_and_default() {
+    let input = ":>> dimension = size(components);";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::shorthand_feature_member, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test parameter with only redefinition, no identifier
+#[test]
+fn test_parse_parameter_with_only_redefines() {
+    let input = "in redefines ifTest;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test succession with multiplicity on succession and endpoints
+#[test]
+fn test_parse_succession_with_multiplicity() {
+    let input = "succession [1] ifTest then [0..1] thenClause { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::succession, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test binding with multiplicity and endpoints
+#[test]
+fn test_parse_binding_with_multiplicity_and_endpoints() {
+    let input = "binding [1] whileDecision.ifTest = [1] whileTest { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::binding_connector, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test binding with "of" keyword (type featuring)
+#[test]
+fn test_parse_binding_with_of_keyword() {
+    let input = "binding loopBack of [0..1] untilDecision.elseClause = [1] whileDecision { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::binding_connector, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test return parameter with multiple redefines after multiplicity properties
+#[test]
+fn test_parse_return_parameter_with_multiple_redefines() {
+    let input = "return resultValues : Anything [*] nonunique redefines result redefines values;";
+    let result = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    );
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test expression with visibility and typing
+#[test]
+fn test_parse_expression_with_visibility_and_typing() {
+    let input =
+        "protected expr monitoredOccurrence : Evaluation [1] redefines monitoredOccurrence { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::expression, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test parameter with bool type and only redefines
+#[test]
+fn test_parse_parameter_with_bool_type() {
+    let input = "in bool redefines onOccurrence { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test parameter with ordered/nonunique after type
+#[test]
+fn test_parse_parameter_with_multiplicity_props_after_type() {
+    let input = "in indexes: Positive[n] ordered nonunique;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test typed feature shorthand: bool redefines x[1] { }
+#[test]
+fn test_parse_typed_feature_member() {
+    let input = "protected bool redefines monitoredOccurrence[1] { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::typed_feature_member, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test lambda expression with inline parameter: {in i; body}
+#[test]
+fn test_parse_lambda_with_inline_parameter() {
+    let input = "{in i; i > 0}";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::collect_operation_args, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test lambda without parameters
+#[test]
+fn test_parse_lambda_no_parameters() {
+    let input = "{i > 0}";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::collect_operation_args, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test simple parameter: in i;
+#[test]
+fn test_parse_simple_parameter() {
+    let input = "in x y { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::parameter_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test feature with crosses and feature chain: crosses sameThing.self
+#[test]
+fn test_parse_cross_subsetting_with_feature_chain() {
+    let input = "end feature thisThing: Anything redefines source subsets sameThing crosses sameThing.self;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test end feature with identification and multiplicity
+#[test]
+fn test_parse_end_feature_with_mult() {
+    let input = "end self2 [1] feature sameThing: Anything redefines target subsets thisThing;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::end_feature, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test step with multiple subsetting targets
+#[test]
+fn test_parse_step_with_multiple_subsets() {
+    let input = "abstract step enactedPerformances: Performance[0..*] subsets involvingPerformances, timeEnclosedOccurrences { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::step, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test comment with multiple about targets
+#[test]
+fn test_parse_comment_with_multiple_about() {
+    let input = "comment about StructuredSurface, StructuredCurve, StructuredPoint";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::comment, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test disjoint from syntax
+#[test]
+fn test_parse_disjoining_with_from() {
+    let input = "abstract class Occurrence specializes Anything disjoint from DataValue { }";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::class, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test subset member shorthand
+#[test]
+fn test_parse_subset_member() {
+    let input = "subset laterOccurrence.successors subsets earlierOccurrence.successors;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::subset_member, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test typed feature with multiplicity before relationships
+#[test]
+fn test_parse_typed_feature_mult_before_relationships() {
+    let input = "bool guard[*] subsets enclosedPerformances;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::typed_feature_member, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+
+// Test binding with feature chain
+#[test]
+fn test_parse_binding_with_feature_chain() {
+    let input = "binding accept.receiver = triggerTarget;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::binding_connector, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test end with typed feature member: end bool name;
+#[test]
+fn test_parse_end_typed_feature() {
+    let input = "end bool constrainedGuard;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::end_feature_membership, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test disjoint with feature chains and from: disjoint a.b from c.d
+#[test]
+fn test_parse_disjoint_feature_chains_from() {
+    let input = "disjoint earlierOccurrence.successors from laterOccurrence.predecessors;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::disjoining, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
+}
+// Test connector with from/to endpoints
+#[test]
+fn test_parse_connector_from_to_endpoints() {
+    let input = "connector :HappensDuring from [1] shorterOccurrence references thisOccurrence to [1] longerOccurrence references thatOccurrence;";
+    let result = KerMLParser::parse(syster::parser::kerml::Rule::connector, input);
+    assert!(result.is_ok(), "Failed to parse: {:?}", result.err());
 }

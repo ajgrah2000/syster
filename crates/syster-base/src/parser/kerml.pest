@@ -47,6 +47,12 @@ identifier = @{
     | (!(keyword ~ !(ASCII_ALPHANUMERIC | "_")) ~ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")*)
 }
 
+// Name that can be a keyword (used for type identifiers)
+name_identifier = @{ 
+    unrestricted_name 
+    | ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")*
+}
+
 // Identification fragments
 short_name = { "<" ~ name ~ ">" }
 regular_name = { name }
@@ -77,7 +83,8 @@ visibility = { visibility_kind }
 readonly = { "readonly" }
 derived = { "derived" }
 end_marker = { "end" }
-feature_modifier = { readonly | derived | end_marker }
+variable_marker = { "variation" | "var" }
+feature_modifier = { readonly | derived | end_marker | variable_marker }
 sufficient = { "all" }
 standard_marker = { "standard" }
 import_all = { "all" }
@@ -116,6 +123,9 @@ non_owner_type = {
 // Helper for string literals
 string_value = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 
+// Helper for character literals
+char_value = @{ "'" ~ (!"'" ~ ANY) ~ "'" }
+
 // Annotation - references another element
 annotation = {
     element_reference
@@ -123,7 +133,7 @@ annotation = {
 
 // Comment - can have 'about' annotations and locale
 comment = {
-    "comment" ~ block_comment? ~ (identifier ~ ";")?
+    "comment" ~ block_comment? ~ identification? ~ ("about" ~ element_reference ~ ("," ~ element_reference)*)? ~ (";")?
 }
 
 // Documentation
@@ -246,7 +256,8 @@ non_feature_element = {
 
 // FeatureElement - union of feature types
 feature_element = {
-    feature
+    end_feature
+    | feature
     | step
     | expression
     | boolean_expression
@@ -269,8 +280,10 @@ type_relationship = {
 // Heritage - inheritance-based relationships for types
 heritage = {
     specialization
+    | reference_subsetting
     | subsetting
     | redefinition
+    | cross_subsetting
     | conjugation
 }
 
@@ -285,7 +298,15 @@ feature_relationship = {
 
 // Multiplicity Bounds - the [lower..upper] syntax
 multiplicity_bounds = {
-    "[" ~ (number | "*") ~ (".." ~ (number | "*"))? ~ "]"
+    "[" ~ multiplicity_bounds_range ~ "]"
+}
+
+multiplicity_bounds_range = {
+    multiplicity_bound ~ (".." ~ multiplicity_bound)?
+}
+
+multiplicity_bound = {
+    inline_expression | number | "*"
 }
 
 // Type extends Namespace
@@ -435,15 +456,32 @@ interaction = {
 feature = {
     prefix_metadata? ~
     feature_direction_kind? ~
-    ("abstract"| "composite" | "portion")? ~
-    feature_modifier? ~
-    "feature" ~ identification? ~
-    multiplicity_bounds? ~
-    ("ordered" | "nonunique")* ~
-    (heritage | type_relationship | feature_relationship)* ~
-    ("ordered" | "nonunique")* ~
+    ("abstract"| "composite" | "portion" | "member" | readonly | derived | end_marker | variable_marker)* ~
+    "feature" ~ "all"? ~ identification? ~
+    feature_specialization_part? ~
     feature_value? ~
     namespace_body
+}
+
+// End feature with identification and multiplicity: end <id> [mult] feature ...
+end_feature = {
+    prefix_metadata? ~
+    end_marker ~ identification ~ multiplicity_bounds ~ "feature" ~ identification? ~
+    feature_specialization_part? ~
+    feature_value? ~
+    namespace_body
+}
+
+feature_specialization_part = {
+    (heritage | type_relationship | feature_relationship)+ ~ multiplicity_part ~ (heritage | type_relationship | feature_relationship)*
+    | (heritage | type_relationship | feature_relationship)+
+    | multiplicity_part ~ (heritage | type_relationship | feature_relationship)*
+    | multiplicity_part
+}
+
+multiplicity_part = {
+    multiplicity_bounds ~ multiplicity_properties?
+    | multiplicity_properties
 }
 
 // MetadataFeature extends Feature and AnnotatingElement
@@ -464,7 +502,13 @@ metadata_feature = {
 
 // Multiplicity extends Feature
 multiplicity = {
-    feature
+    prefix_metadata? ~
+    feature_direction_kind? ~
+    ("abstract"| "composite" | "portion" | "member" | readonly | derived | end_marker | variable_marker)* ~
+    ("multiplicity" | "feature") ~ identification? ~
+    feature_specialization_part? ~
+    feature_value? ~
+    namespace_body
 }
 
 // MultiplicityRange extends Multiplicity
@@ -485,7 +529,7 @@ step = {
     ("abstract" | "composite" | "portion")? ~
     feature_modifier? ~
     "step" ~ identification? ~
-    ("ordered" | "nonunique")* ~
+    feature_specialization_part? ~
     feature_value? ~
     membership? ~
     owning_membership? ~
@@ -493,16 +537,22 @@ step = {
 }
 
 // Connector extends Feature and Relationship
+// Connector endpoint definition for from/to clauses
+connector_endpoint = {
+    multiplicity_bounds? ~ (owned_feature_chain | identification) ~ feature_specialization_part?
+}
+
 connector = {
     prefix_metadata? ~
     feature_direction_kind? ~
     ("abstract" | "composite" | "portion")? ~
     feature_modifier? ~
-    "connector" ~ identification? ~
+    "connector" ~ "all"? ~ multiplicity_bounds? ~ identification? ~
+    feature_typing? ~
+    ("from" ~ connector_endpoint)? ~
+    ("to" ~ connector_endpoint)? ~
     ("ordered" | "nonunique")* ~
     feature_value? ~
-    membership? ~
-    owning_membership? ~
     end_feature_membership* ~
     namespace_body
 }
@@ -518,7 +568,14 @@ succession = {
     feature_direction_kind? ~
     ("abstract" | "composite" | "portion")? ~
     feature_modifier? ~
-    "succession" ~ identification? ~
+    "succession" ~ "all"? ~ identification? ~
+    multiplicity_bounds? ~
+    feature_typing? ~
+    (
+        ("first" ~ multiplicity_bounds? ~ (owned_feature_chain | element_reference))
+        | (multiplicity_bounds? ~ (owned_feature_chain | element_reference))
+    )? ~
+    ("then" ~ multiplicity_bounds? ~ (owned_feature_chain | element_reference))? ~
     ("ordered" | "nonunique")* ~
     feature_value? ~
     membership? ~
@@ -533,7 +590,16 @@ binding_connector = {
     feature_direction_kind? ~
     ("abstract" | "composite" | "portion")? ~
     feature_modifier? ~
-    "binding" ~ identification? ~
+    "binding" ~ (
+        owned_feature_chain ~ ("=" ~ multiplicity_bounds? ~ (owned_feature_chain | element_reference))
+        | identification? ~ multiplicity_bounds? ~
+          (
+              feature_typing
+              | (("featuring" | "of") ~ multiplicity_bounds? ~ (owned_feature_chain | element_reference))
+              | (multiplicity_bounds? ~ (owned_feature_chain | element_reference))
+          )? ~
+          ("=" ~ multiplicity_bounds? ~ (owned_feature_chain | element_reference))?
+    ) ~
     ("ordered" | "nonunique")* ~
     feature_value? ~
     membership? ~
@@ -545,11 +611,12 @@ binding_connector = {
 // Expression extends Step
 expression = {
     prefix_metadata? ~
+    visibility_kind? ~
     feature_direction_kind? ~
     ("abstract" | "composite" | "portion")? ~
     feature_modifier? ~
     "expr" ~ identification? ~
-    ("ordered" | "nonunique")* ~
+    feature_specialization_part? ~
     feature_value? ~
     membership? ~
     owning_membership? ~
@@ -577,7 +644,7 @@ boolean_expression = {
 invariant = {
     prefix_metadata? ~
     "inv" ~ "not"? ~ identification? ~
-    namespace_body
+    (namespace_body | ("{" ~ operator_expression ~ "}"))
 }
 
 // Package extends Namespace
@@ -612,7 +679,7 @@ inheritance = {
 
 // Unioning extends Relationship
 unioning = {
-    "unions" ~ relationship
+    "unions" ~ relationship ~ ("," ~ relationship)*
 }
 
 // Differencing extends Relationship
@@ -637,12 +704,15 @@ specialization = {
 
 // Disjoining extends Relationship
 disjoining = {
-    "disjoint" ~ relationship
+    "disjoint" ~ (
+        element_reference ~ "from" ~ element_reference  // disjoint a.b from c.d
+        | "from" ~ relationship                          // disjoint from X
+    )
 }
 
 // FeatureInverting extends Relationship
 feature_inverting = {
-    "inverse" ~ relationship
+    "inverse" ~ "of"? ~ relationship
 }
 
 // Featuring extends Relationship
@@ -758,7 +828,7 @@ owning_membership = {
 
 // FeatureValue extends OwningMembership
 feature_value = {
-    ("=" | ":=") ~
+    ("=" | ":=" | "default") ~
     owning_membership
 }
 
@@ -775,13 +845,29 @@ feature_membership = {
 
 // EndFeatureMembership extends FeatureMembership
 end_feature_membership = {
-    "end" ~ feature_membership
+    "end" ~ (
+        typed_feature_member
+        | feature_membership
+    )
 }
 
 // ParameterMembership extends FeatureMembership
 // Simplified: direction identifier : type[mult] ;
+// Or: direction featuretype identifier[mult] { body }
 parameter_membership = {
-    feature_direction_kind ~ identifier ~ feature_typing ~ ";"
+    feature_direction_kind ~ (
+        name_identifier ~ identifier ~ parameter_specialization_part? ~ feature_value?  // type + name
+        | identifier ~ parameter_specialization_part? ~ feature_value?  // just name
+        | name_identifier ~ parameter_specialization_part ~ feature_value?  // type + relationships
+        | parameter_specialization_part ~ feature_value?  // just relationships
+    ) ~ (namespace_body | ";")
+}
+
+parameter_specialization_part = {
+    (feature_typing | heritage)+ ~ multiplicity_part ~ (feature_typing | heritage)*
+    | (feature_typing | heritage)+
+    | multiplicity_part ~ (feature_typing | heritage)*
+    | multiplicity_part
 }
 
 // ResultExpressionMembership extends FeatureMembership
@@ -792,14 +878,17 @@ result_expression_membership = {
 // ReturnParameterMembership extends ParameterMembership
 // Simplified: return : type[mult] default expr ;
 return_parameter_membership = {
-    "return" ~ identifier? ~ feature_typing ~ ("ordered" | "nonunique")* ~ (("=" | "default") ~ inline_expression)? ~ ";"
+    "return" ~ (
+        identifier ~ parameter_specialization_part? ~ (("=" | "default") ~ inline_expression)?
+        | parameter_specialization_part ~ (("=" | "default") ~ inline_expression)?
+    ) ~ (namespace_body | ";")
 }
 
 // References
 
-// QualifiedReferenceChain - name::name::name pattern
+// QualifiedReferenceChain - name::name::name or name.name.name pattern
 qualified_reference_chain = {
-    identifier ~ ("::" ~ identifier)*
+    identifier ~ ("::" ~ identifier | "." ~ identifier)*
 }
 
 // ElementReference - base reference type
@@ -847,6 +936,10 @@ literal_string = {
     string_value
 }
 
+literal_char = {
+    char_value
+}
+
 literal_number = {
     number
 }
@@ -858,6 +951,7 @@ literal_infinity = {
 literal_expression = {
     literal_boolean
     | literal_string
+    | literal_char
     | literal_number
     | literal_infinity
 }
@@ -871,13 +965,51 @@ null_expression = {
 
 // OperatorExpression - base for operator-based expressions with proper precedence
 operator_expression = {
-    equality_expression
+    conditional_expression
 }
 
-// Equality Expressions (highest precedence for comparison)
-equality_expression = {
-    relational_expression ~ (equality_operator ~ relational_expression)*
+// Conditional Expression (if-then-else ternary)
+conditional_expression = {
+    "if" ~ null_coalescing_expression ~ "?" ~ operator_expression ~ "else" ~ operator_expression
+    | null_coalescing_expression
 }
+
+// Null coalescing (default) expression
+null_coalescing_expression = {
+    implies_expression ~ ("??" ~ implies_expression)*
+}
+
+// Implies expression (logical implication)
+implies_expression = {
+    or_expression ~ ("implies" ~ or_expression)*
+}
+
+// Logical OR expressions
+or_expression = {
+    xor_expression ~ (("or" | "|") ~ xor_expression)*
+}
+
+// Logical XOR expressions
+xor_expression = {
+    and_expression ~ ("xor" ~ and_expression)*
+}
+
+// Logical AND expressions
+and_expression = {
+    equality_expression ~ (("and" | "&") ~ equality_expression)*
+}
+
+// Equality Expressions
+equality_expression = {
+    classification_expression ~ (equality_operator ~ classification_expression)*
+}
+
+// Classification Expressions (as operator for type casting)
+classification_expression = {
+    relational_expression ~ (as_operator ~ type_reference)?
+}
+
+as_operator = @{ "as" ~ !(ASCII_ALPHANUMERIC | "_") }
 
 // Relational Expressions
 relational_expression = {
@@ -918,13 +1050,24 @@ exponentiation_operator = {
 
 // Unary Expressions
 unary_expression = {
-    unary_operator ~ primary_expression
-    | primary_expression
+    unary_operator ~ collect_operator_expression
+    | collect_operator_expression
+}
+
+// Collect Operator Expressions (-> for collection operations, . for feature chaining, # for indexing)
+collect_operator_expression = {
+    primary_expression ~ (("." ~ identifier) | ("->" ~ identifier ~ collect_operation_args?) | ("#" ~ "(" ~ operator_expression ~ ("," ~ operator_expression)* ~ ")"))*
+}
+
+collect_operation_args = {
+    "{" ~ parameter_membership* ~ operator_expression ~ "}"
+    | "(" ~ (operator_expression ~ ("," ~ operator_expression)*)? ~ ")"
+    | operator_expression
 }
 
 // Primary Expressions
 primary_expression = {
-    "(" ~ operator_expression ~ ")"
+    "(" ~ operator_expression ~ ("," ~ operator_expression)* ~ ")"
     | invocation_primary
     | literal_expression
     | null_expression
@@ -932,7 +1075,7 @@ primary_expression = {
 }
 
 invocation_primary = {
-    identifier ~ "(" ~ (operator_expression ~ ("," ~ operator_expression)*)? ~ ")"
+    qualified_reference_chain ~ "(" ~ (operator_expression ~ ("," ~ operator_expression)*)? ~ ")"
 }
 
 // InvocationExpression - now handled within operator_expression hierarchy
@@ -1031,7 +1174,7 @@ feature_chain_member = {
 // Invocation Expressions
 
 owned_feature_chain = {
-    feature_chaining_expr ~ ("." ~ feature_chaining_expr)+
+    identifier ~ ("." ~ identifier)+
 }
 
 feature_chaining_expr = {
@@ -1091,9 +1234,46 @@ namespace_body_element = {
     | annotating_member
     | parameter_membership
     | return_parameter_membership
-    | non_feature_member
+    | end_feature_membership
     | namespace_feature_member
+    | typed_feature_member
+    | subset_member
+    | shorthand_feature_member
+    | non_feature_member
     | relationship_member
+    | operator_expression
+}
+
+// Shorthand feature member without 'feature' keyword
+shorthand_feature_member = {
+    visibility_kind? ~
+    (
+        identification ~ feature_typing? ~ (heritage | type_relationship | feature_relationship)* ~ feature_value?
+        | (heritage | type_relationship | feature_relationship)+ ~ feature_value?
+    ) ~
+    ";"
+}
+
+// Subset member shorthand: subset x.y subsets a.b;
+subset_member = {
+    "subset" ~ qualified_reference_chain ~ (heritage | type_relationship | feature_relationship)+ ~ ";"
+}
+
+// Typed feature shorthand: <type> <name>? <relationships>* <mult>? <body>
+// e.g., "bool monitoredOccurrence[1] { }" or "protected bool redefines x {}"
+// Allows multiplicity before or after relationships
+typed_feature_member = {
+    visibility_kind? ~
+    name_identifier ~ // Type reference (can be keyword like "bool")
+    identification? ~ // Optional feature name
+    (
+        (heritage | type_relationship | feature_relationship)+ ~ multiplicity_bounds? ~ (heritage | type_relationship | feature_relationship)*
+        | (heritage | type_relationship | feature_relationship)+
+        | multiplicity_bounds ~ (heritage | type_relationship | feature_relationship)*
+        | multiplicity_bounds
+    )? ~
+    feature_value? ~
+    namespace_body
 }
 
 // Root Namespace Entry Point
