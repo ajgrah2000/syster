@@ -2152,3 +2152,50 @@ fn test_parse_function_with_return_default(#[case] input: &str) {
     let parsed = pairs.into_iter().next().unwrap();
     assert_eq!(parsed.as_str(), input);
 }
+// Test binary operator expressions
+#[rstest]
+#[case("x == y")]
+#[case("x != y")]
+#[case("x === y")]
+#[case("x < y")]
+#[case("x <= y")]
+#[case("x > y")]
+#[case("x >= y")]
+#[case("x + y")]
+#[case("x - y")]
+#[case("x * y")]
+#[case("x / y")]
+fn test_parse_binary_expression(#[case] input: &str) {
+    let pairs =
+        KerMLParser::parse(syster::parser::kerml::Rule::operator_expression, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test return with binary expression
+#[rstest]
+#[case("return : Boolean[1] = x == y;")]
+#[case("return : Boolean[1] = x != y;")]
+#[case("return : Boolean[1] = x < y;")]
+fn test_parse_return_with_binary_expression(#[case] input: &str) {
+    let pairs = KerMLParser::parse(
+        syster::parser::kerml::Rule::return_parameter_membership,
+        input,
+    )
+    .unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}
+
+// Test function with special operator names
+#[rstest]
+#[case("function '..' { in x: Integer[1]; return : Integer[1]; }")]
+#[case("function test { return : Integer[0..*]; }")]
+#[case(
+    "abstract function '..' { in lower: DataValue[1]; in upper: DataValue[1]; return : DataValue[0..*] ordered; }"
+)]
+fn test_parse_function_with_range_operator(#[case] input: &str) {
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::function, input).unwrap();
+    let parsed = pairs.into_iter().next().unwrap();
+    assert_eq!(parsed.as_str(), input);
+}

@@ -101,16 +101,7 @@ enum_type = {
 
 // InlineExpression - union of expression types that can appear inline
 inline_expression = {
-    feature_chain_expression
-    | index_expression
-    | invocation_expression
-    | literal_expression
-    | metadata_access_expression
-    | null_expression
-    | operator_expression
-    | collect_expression
-    | select_expression
-    | feature_reference_expression
+    operator_expression  // Top-level expression that includes all operators and sub-expressions
 }
 
 // NonOwnerType - union of non-owning relationship types
@@ -801,7 +792,7 @@ result_expression_membership = {
 // ReturnParameterMembership extends ParameterMembership
 // Simplified: return : type[mult] default expr ;
 return_parameter_membership = {
-    "return" ~ identifier? ~ feature_typing ~ (("=" | "default") ~ inline_expression)? ~ ";"
+    "return" ~ identifier? ~ feature_typing ~ ("ordered" | "nonunique")* ~ (("=" | "default") ~ inline_expression)? ~ ";"
 }
 
 // References
@@ -878,22 +869,80 @@ null_expression = {
 
 // Complex Expression Types (placeholders for full implementation)
 
-// OperatorExpression - base for operator-based expressions
+// OperatorExpression - base for operator-based expressions with proper precedence
 operator_expression = {
-    // Placeholder: Will be expanded with full operator precedence grammar
-    literal_expression | null_expression | feature_reference_expression
+    equality_expression
 }
 
-// InvocationExpression - function/feature invocation
+// Equality Expressions (highest precedence for comparison)
+equality_expression = {
+    relational_expression ~ (equality_operator ~ relational_expression)*
+}
+
+// Relational Expressions
+relational_expression = {
+    range_expression ~ (relational_operator ~ range_expression)*
+}
+
+// Range Expressions (handles .. operator)
+range_expression = {
+    additive_expression ~ (".." ~ additive_expression)?
+}
+
+// Additive Expressions
+additive_expression = {
+    multiplicative_expression ~ (additive_operator ~ multiplicative_expression)*
+}
+
+additive_operator = {
+    "+" | "-"
+}
+
+// Multiplicative Expressions
+multiplicative_expression = {
+    exponentiation_expression ~ (multiplicative_operator ~ exponentiation_expression)*
+}
+
+multiplicative_operator = {
+    "*" | "/" | "%"
+}
+
+// Exponentiation Expressions
+exponentiation_expression = {
+    unary_expression ~ (exponentiation_operator ~ exponentiation_expression)?
+}
+
+exponentiation_operator = {
+    "**" | "^"
+}
+
+// Unary Expressions
+unary_expression = {
+    unary_operator ~ primary_expression
+    | primary_expression
+}
+
+// Primary Expressions
+primary_expression = {
+    "(" ~ operator_expression ~ ")"
+    | invocation_primary
+    | literal_expression
+    | null_expression
+    | feature_reference_expression
+}
+
+invocation_primary = {
+    identifier ~ "(" ~ (operator_expression ~ ("," ~ operator_expression)*)? ~ ")"
+}
+
+// InvocationExpression - now handled within operator_expression hierarchy
 invocation_expression = {
-    (identifier ~ "(" ~ (inline_expression ~ ("," ~ inline_expression)*)? ~ ")")
-    | operator_expression
+    operator_expression
 }
 
-// FeatureChainExpression - chained feature access (e.g., a.b.c)
+// FeatureChainExpression - now handled within operator_expression hierarchy
 feature_chain_expression = {
-    // Placeholder: Will be expanded with chaining syntax
-    operator_expression ~ ("." ~ identifier)*
+    operator_expression
 }
 
 // IndexExpression - array/collection indexing (e.g., arr[0])
