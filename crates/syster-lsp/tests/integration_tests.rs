@@ -48,6 +48,190 @@ fn test_server_initialization() {
 }
 
 #[test]
+fn test_ensure_stdlib_loaded() {
+    let mut server = LspServer::new();
+
+    // Initially workspace should be empty
+    assert_eq!(
+        server.workspace().files().len(),
+        0,
+        "Workspace should start empty"
+    );
+    assert!(
+        !server.workspace().has_stdlib(),
+        "Stdlib should not be loaded initially"
+    );
+
+    // Load stdlib
+    server.ensure_stdlib_loaded().expect("Should load stdlib");
+
+    // Verify stdlib was loaded
+    assert!(
+        server.workspace().has_stdlib(),
+        "Stdlib should be marked as loaded"
+    );
+    assert!(
+        server.workspace().files().len() > 0,
+        "Workspace should have files after stdlib loading"
+    );
+
+    println!(
+        "✓ Stdlib loaded: {} workspace files",
+        server.workspace().files().len()
+    );
+
+    // Verify we can find specific stdlib files
+    let has_base = server
+        .workspace()
+        .files()
+        .keys()
+        .any(|p| p.to_string_lossy().contains("Base.kerml"));
+    assert!(has_base, "Should have loaded Base.kerml from stdlib");
+
+    // Load stdlib again - count shouldn't change (idempotent)
+    server.ensure_stdlib_loaded().expect("Should load stdlib");
+    assert_eq!(
+        server.workspace().files().len(),
+        server.workspace().files().len(),
+        "Files count should remain the same on second call"
+    );
+}
+
+#[test]
+fn test_hover_on_cross_file_symbol() {
+    let mut server = LspServer::new();
+
+    // Load stdlib first
+    server.ensure_stdlib_loaded().expect("Should load stdlib");
+
+    println!(
+        "✓ Stdlib loaded with {} symbols",
+        server.workspace().symbol_table().all_symbols().len()
+    );
+
+    // Debug: Check how many KerML vs SysML files
+    let mut kerml_count = 0;
+    let mut sysml_count = 0;
+    for path in server.workspace().files().keys() {
+        if path.extension().and_then(|e| e.to_str()) == Some("kerml") {
+            kerml_count += 1;
+        } else if path.extension().and_then(|e| e.to_str()) == Some("sysml") {
+            sysml_count += 1;
+        }
+    }
+    println!(
+        "✓ File breakdown: {} KerML files, {} SysML files",
+        kerml_count, sysml_count
+    );
+
+    // Check if ScalarValues.kerml is loaded
+    let scalar_values_path = server
+        .workspace()
+        .files()
+        .keys()
+        .find(|p| p.to_string_lossy().contains("ScalarValues.kerml"));
+
+    if let Some(path) = scalar_values_path {
+        println!("✓ Found ScalarValues.kerml at: {}", path.display());
+    } else {
+        println!("✗ ScalarValues.kerml NOT in workspace!");
+    }
+
+    // Find TradeStudies.sysml file
+    let trade_studies_path = server
+        .workspace()
+        .files()
+        .keys()
+        .find(|p| p.to_string_lossy().contains("TradeStudies.sysml"))
+        .expect("Should have TradeStudies.sysml in stdlib")
+        .clone();
+
+    println!(
+        "✓ Found TradeStudies.sysml at: {}",
+        trade_studies_path.display()
+    );
+
+    // Convert to absolute path for URL conversion
+    let abs_path = std::fs::canonicalize(&trade_studies_path).expect("Should canonicalize path");
+
+    // Open the document (simulate LSP did_open)
+    let uri = tower_lsp::lsp_types::Url::from_file_path(&abs_path).expect("Should convert to URL");
+    let text = std::fs::read_to_string(&trade_studies_path).expect("Should read file");
+
+    server
+        .open_document(&uri, &text)
+        .expect("Should open document");
+
+    // Find line containing "ScalarValue" - it should be in the EvaluationFunction definition
+    let lines: Vec<&str> = text.lines().collect();
+    let (line_index, col_index) = lines
+        .iter()
+        .enumerate()
+        .find_map(|(i, line)| {
+            if let Some(pos) = line.find("ScalarValue") {
+                Some((i, pos))
+            } else {
+                None
+            }
+        })
+        .expect("Should find ScalarValue in file");
+
+    println!(
+        "✓ Found 'ScalarValue' at line {}, col {}",
+        line_index, col_index
+    );
+    println!("  Line content: {}", lines[line_index].trim());
+
+    // Try to get hover at that position
+    let position = tower_lsp::lsp_types::Position {
+        line: line_index as u32,
+        character: (col_index + 5) as u32, // Middle of "ScalarValue"
+    };
+
+    println!(
+        "✓ Attempting hover at line {}, char {}",
+        position.line, position.character
+    );
+
+    let hover_result = server.get_hover(&uri, position);
+
+    if let Some(hover) = hover_result {
+        println!("✓ Hover succeeded!");
+        if let tower_lsp::lsp_types::HoverContents::Scalar(
+            tower_lsp::lsp_types::MarkedString::String(content),
+        ) = hover.contents
+        {
+            println!("  Content: {}", content);
+            assert!(
+                content.contains("ScalarValue"),
+                "Hover should mention ScalarValue"
+            );
+        }
+    } else {
+        println!("✗ Hover failed - no result returned");
+
+        // Debug: Check if ScalarValue exists in symbol table
+        let scalar_value_symbols: Vec<_> = server
+            .workspace()
+            .symbol_table()
+            .all_symbols()
+            .iter()
+            .filter(|(_, s)| {
+                s.name() == "ScalarValue" || s.qualified_name().contains("ScalarValue")
+            })
+            .map(|(_, s)| (s.name(), s.qualified_name(), s.span().is_some()))
+            .collect();
+
+        println!(
+            "  Symbols matching 'ScalarValue': {:?}",
+            scalar_value_symbols
+        );
+
+        panic!("Hover should work for cross-file symbol ScalarValue");
+    }
+}
+
+#[test]
 fn test_stdlib_symbols_present() {
     // This test explicitly loads stdlib to verify symbols
     let mut server = LspServer::new();

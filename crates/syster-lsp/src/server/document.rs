@@ -12,6 +12,9 @@ impl LspServer {
     /// - Updating the workspace
     /// - Repopulating symbols
     fn parse_and_update(&mut self, uri: &Url, text: &str, is_update: bool) -> Result<(), String> {
+        // Ensure stdlib is loaded on first document open
+        self.ensure_stdlib_loaded()?;
+
         let path = uri
             .to_file_path()
             .map_err(|_| format!("Invalid file URI: {}", uri))?;
@@ -44,6 +47,8 @@ impl LspServer {
             self.workspace.add_file(path, file);
             // Populate symbols - ignore semantic errors for now
             let _ = self.workspace.populate_all();
+            // Sync document texts from workspace (for stdlib and imported files)
+            self.sync_document_texts_from_workspace();
         }
 
         Ok(())

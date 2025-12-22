@@ -2757,3 +2757,41 @@ x->y"#;
         result.err()
     );
 }
+
+#[test]
+fn test_parse_scalar_values_stdlib_file() {
+    let content = r#"standard library package ScalarValues {
+    private import Base::DataValue;
+    abstract datatype ScalarValue specializes DataValue;
+    datatype Boolean specializes ScalarValue;
+}"#;
+    
+    let pairs = KerMLParser::parse(syster::parser::kerml::Rule::file, content).unwrap();
+    
+    println!("\n=== Parse Tree ===");
+    for pair in pairs.clone() {
+        println!("Top-level Rule: {:?}", pair.as_rule());
+        for inner in pair.into_inner() {
+            println!("  -> {:?}", inner.as_rule());
+            for inner2 in inner.into_inner() {
+                println!("    -> {:?}", inner2.as_rule());
+            }
+        }
+    }
+    
+    // Try to convert to KerMLFile
+    use syster::syntax::kerml::ast::KerMLFile;
+    use from_pest::FromPest;
+    
+    let mut pairs = KerMLParser::parse(syster::parser::kerml::Rule::file, content).unwrap();
+    let file = KerMLFile::from_pest(&mut pairs).unwrap();
+    
+    println!("\n=== KerMLFile ===");
+    println!("Namespace: {:?}", file.namespace);
+    println!("Elements count: {}", file.elements.len());
+    for (i, elem) in file.elements.iter().enumerate() {
+        println!("  Element {}: {:?}", i, elem);
+    }
+    
+    assert!(!file.elements.is_empty(), "File should have elements!");
+}

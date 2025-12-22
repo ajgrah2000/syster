@@ -1,3 +1,5 @@
+use serde_json::Value;
+use std::path::PathBuf;
 use tower_lsp::jsonrpc::Result;
 use tower_lsp::lsp_types::*;
 use tower_lsp::{Client, LanguageServer, LspService, Server as TowerServer};
@@ -12,7 +14,31 @@ struct SysterLanguageServer {
 
 #[tower_lsp::async_trait]
 impl LanguageServer for SysterLanguageServer {
-    async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
+    async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
+        // Parse initialization options for stdlib configuration
+        let (stdlib_enabled, stdlib_path) =
+            if let Some(Value::Object(opts)) = params.initialization_options {
+                let enabled = opts
+                    .get("stdlibEnabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                let path = opts
+                    .get("stdlibPath")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .map(PathBuf::from);
+
+                eprintln!("[LSP] Stdlib config: enabled={}, path={:?}", enabled, path);
+                (enabled, path)
+            } else {
+                eprintln!("[LSP] No initialization options, using defaults");
+                (true, None)
+            };
+
+        // Configure server with initialization options
+        let mut server = self.server.lock().await;
+        *server = LspServer::with_config(stdlib_enabled, stdlib_path);
+
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(

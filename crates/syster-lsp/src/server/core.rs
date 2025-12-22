@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use syster::core::ParseError;
+use syster::project::StdLibLoader;
 use syster::semantic::{Workspace, resolver::Resolver};
 use syster::syntax::SyntaxFile;
 
@@ -11,6 +12,10 @@ pub struct LspServer {
     pub(super) parse_errors: HashMap<PathBuf, Vec<ParseError>>,
     /// Track document text for hover and other features (keyed by file path)
     pub(super) document_texts: HashMap<PathBuf, String>,
+    /// Stdlib loader for lazy loading
+    pub(super) stdlib_loader: StdLibLoader,
+    /// Whether stdlib loading is enabled
+    stdlib_enabled: bool,
 }
 
 impl Default for LspServer {
@@ -21,15 +26,54 @@ impl Default for LspServer {
 
 impl LspServer {
     pub fn new() -> Self {
+        Self::with_config(true, None)
+    }
+
+    /// Create a new LspServer with custom configuration
+    pub fn with_config(stdlib_enabled: bool, custom_stdlib_path: Option<PathBuf>) -> Self {
         // Initialize workspace without loading stdlib
         // Stdlib loading is expensive and not needed for most LSP operations
         // Files can load stdlib symbols through explicit imports
         let workspace = Workspace::<SyntaxFile>::new();
 
+        // Determine stdlib path - try multiple locations
+        let stdlib_path = if let Some(path) = custom_stdlib_path {
+            eprintln!("[LSP] Using custom stdlib path: {:?}", path);
+            path
+        } else {
+            // Get the binary directory (where syster-lsp executable is located)
+            let binary_dir = std::env::current_exe()
+                .ok()
+                .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
+
+            eprintln!("[LSP] Binary directory: {:?}", binary_dir);
+
+            // Look for sysml.library next to the binary (copied by build script)
+            let stdlib_next_to_binary = binary_dir.join("sysml.library");
+
+            eprintln!(
+                "[LSP] Checking stdlib path: {:?} (exists: {}, is_dir: {})",
+                stdlib_next_to_binary,
+                stdlib_next_to_binary.exists(),
+                stdlib_next_to_binary.is_dir()
+            );
+
+            if stdlib_next_to_binary.exists() && stdlib_next_to_binary.is_dir() {
+                eprintln!("[LSP] Found stdlib at: {:?}", stdlib_next_to_binary);
+                stdlib_next_to_binary
+            } else {
+                eprintln!("[LSP] WARNING: No stdlib directory found next to binary");
+                PathBuf::from("sysml.library")
+            }
+        };
+
         Self {
             workspace,
             parse_errors: HashMap::new(),
             document_texts: HashMap::new(),
+            stdlib_loader: StdLibLoader::with_path(stdlib_path),
+            stdlib_enabled,
         }
     }
 
@@ -49,5 +93,52 @@ impl LspServer {
     #[allow(dead_code)]
     pub fn document_texts_mut(&mut self) -> &mut HashMap<PathBuf, String> {
         &mut self.document_texts
+    }
+
+    /// Ensure stdlib is loaded (lazy loading)
+    /// Only loads stdlib once, on first call
+    /// Returns Ok(()) even if stdlib loading is disabled
+    pub fn ensure_stdlib_loaded(&mut self) -> Result<(), String> {
+        if !self.stdlib_enabled {
+            eprintln!("[LSP] Stdlib loading disabled");
+            return Ok(());
+        }
+
+        eprintln!("[LSP] Loading stdlib...");
+        // Load stdlib files into workspace
+        self.stdlib_loader.ensure_loaded(&mut self.workspace)?;
+        eprintln!(
+            "[LSP] Stdlib loaded: {} files",
+            self.workspace.files().len()
+        );
+
+        // Populate symbols from loaded files
+        let _ = self.workspace.populate_all();
+        eprintln!(
+            "[LSP] Symbols populated: {} symbols",
+            self.workspace.symbol_table().all_symbols().len()
+        );
+
+        // Sync document texts so hover can access source code
+        self.sync_document_texts_from_workspace();
+        eprintln!(
+            "[LSP] Document texts synced: {} texts",
+            self.document_texts.len()
+        );
+
+        Ok(())
+    }
+
+    /// Sync document_texts with all files currently in the workspace
+    /// This ensures hover and other features work on all workspace files without disk reads
+    pub fn sync_document_texts_from_workspace(&mut self) {
+        for path in self.workspace.files().keys() {
+            // Only load if not already tracked (avoid overwriting editor versions)
+            if !self.document_texts.contains_key(path) {
+                if let Ok(text) = std::fs::read_to_string(path) {
+                    self.document_texts.insert(path.clone(), text);
+                }
+            }
+        }
     }
 }

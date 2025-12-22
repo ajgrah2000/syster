@@ -1272,10 +1272,10 @@ namespace_body_element = {
     | return_parameter_membership
     | end_feature_membership
     | namespace_feature_member
+    | non_feature_member
     | typed_feature_member
     | subset_member
     | shorthand_feature_member
-    | non_feature_member
     | relationship_member
     | operator_expression
 }

@@ -80,7 +80,12 @@
         "syster.stdlib.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Load SysML standard library"
+          "description": "Load SysML standard library on document open"
+        },
+        "syster.stdlib.path": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to SysML standard library directory (leave empty for auto-detection from sysml.library or crates/syster-base/sysml.library)"
         }
       }
     },

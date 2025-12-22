@@ -30,11 +30,14 @@
 //!
 //! This boundary is enforced by architecture tests in `tests/architecture_tests.rs`.
 
+mod kerml;
+pub mod kerml_adapter;
 mod syntax_factory;
 mod sysml;
 pub mod sysml_adapter;
 mod validator_factory;
 
+pub use kerml_adapter::KermlAdapter;
 pub use syntax_factory::populate_syntax_file;
 pub use sysml::validator::SysmlValidator;
 pub use sysml_adapter::SysmlAdapter;

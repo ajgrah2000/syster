@@ -33,6 +33,21 @@ async function createServerOptions(outputChannel: vscode.OutputChannel): Promise
  * Create client options for the Language Client
  */
 function createClientOptions(outputChannel: vscode.OutputChannel): LanguageClientOptions {
+    // Read stdlib configuration from VS Code settings
+    const config = vscode.workspace.getConfiguration('syster');
+    const stdlibEnabled = config.get<boolean>('stdlib.enabled', true);
+    const stdlibPath = config.get<string>('stdlib.path', '');
+
+    // Only pass stdlibPath if it's actually set (non-empty)
+    const initOptions: { stdlibEnabled: boolean; stdlibPath?: string } = {
+        stdlibEnabled
+    };
+    if (stdlibPath) {
+        initOptions.stdlibPath = stdlibPath;
+    }
+
+    outputChannel.appendLine(`[Client] Initialization options: ${JSON.stringify(initOptions)}`);
+
     return {
         documentSelector: [
             { scheme: 'file', language: 'sysml' },
@@ -44,6 +59,7 @@ function createClientOptions(outputChannel: vscode.OutputChannel): LanguageClien
         outputChannel,
         traceOutputChannel: outputChannel,
         revealOutputChannelOn: 4, // Never automatically show output
+        initializationOptions: initOptions,
         middleware: {
             provideHover: async (document, position, token, next) => {
                 outputChannel.appendLine(`[Client] Hover requested at ${position.line}:${position.character}`);

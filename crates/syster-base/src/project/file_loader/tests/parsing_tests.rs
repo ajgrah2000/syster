@@ -190,10 +190,10 @@ fn test_parse_content_kerml_placeholder() {
     // Should return a KerML file
     match lang_file {
         SyntaxFile::KerML(kerml_file) => {
-            // Currently returns empty file - this will change when KerML is implemented
+            // KerML parsing is now implemented, should have elements
             assert!(
-                kerml_file.elements.is_empty(),
-                "KerML placeholder should return empty"
+                !kerml_file.elements.is_empty(),
+                "KerML file should have parsed elements"
             );
         }
         SyntaxFile::SysML(_) => {
