@@ -1327,7 +1327,7 @@ namespace_element = {
     | import
     | alias_member
     | annotating_member
-    | non_feature_member
     | namespace_feature_member
+    | non_feature_member
     | relationship_member
 }

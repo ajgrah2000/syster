@@ -35,8 +35,8 @@ fn test_kerml_visitor_creates_classifier_symbol() {
 
     let symbol = symbol_table.lookup("Vehicle").unwrap();
     match symbol {
-        Symbol::Definition { kind, .. } => assert_eq!(kind, "Classifier"),
-        _ => panic!("Expected Definition symbol"),
+        Symbol::Classifier { kind, .. } => assert_eq!(kind, "Classifier"),
+        _ => panic!("Expected Classifier symbol"),
     }
 }
 
