@@ -3,10 +3,10 @@
 use from_pest::FromPest;
 use pest::Parser;
 use std::path::PathBuf;
-use syster::parser::{SysMLParser, sysml::Rule};
+use syster::parser::{sysml::Rule, SysMLParser};
 use syster::semantic::Workspace;
-use syster::syntax::SyntaxFile;
 use syster::syntax::sysml::ast::SysMLFile;
+use syster::syntax::SyntaxFile;
 
 #[test]
 fn test_parse_import_statement() {
@@ -283,7 +283,14 @@ fn test_import_alias() {
     let car = workspace.symbol_table().lookup_qualified("Derived::Car");
     assert!(car.is_some(), "Car should be defined");
 
-    // TODO: Verify that BaseVehicle resolves to Vehicle
+    // Verify that BaseVehicle resolves to Vehicle
+    let base_vehicle = workspace
+        .symbol_table()
+        .lookup_qualified("Derived::BaseVehicle");
+    assert!(
+        base_vehicle.is_some(),
+        "BaseVehicle alias should be defined in Derived package"
+    );
 }
 
 #[test]
