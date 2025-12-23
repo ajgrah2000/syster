@@ -2986,12 +2986,10 @@ fn test_parse_abstract_classifier_ast() {
 }
 
 #[test]
-#[ignore = "TODO: Parser not extracting readonly flag - needs investigation"]
 fn test_parse_readonly_feature_ast() {
     use from_pest::FromPest;
     use syster::syntax::kerml::ast::KerMLFile;
 
-    // Try with a different syntax - maybe feature needs to be in a package?
     let input = r#"
         package Test {
             readonly feature id : String;
