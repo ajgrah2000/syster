@@ -37,17 +37,7 @@ impl<'a> KermlAdapter<'a> {
             };
             self.insert_symbol(name.clone(), symbol);
             self.enter_namespace(name.clone());
-
-            for element in &package.elements {
-                self.visit_element(element);
-            }
-
-            self.exit_namespace();
-        } else {
-            // Anonymous package - just process its elements
-            for element in &package.elements {
-                self.visit_element(element);
-            }
+            // Don't exit here - let the caller manage lifecycle
         }
     }
 
@@ -98,13 +88,12 @@ impl<'a> KermlAdapter<'a> {
 
             self.insert_symbol(name.clone(), symbol);
             self.enter_namespace(name.clone());
+            // Don't exit here - let the caller manage lifecycle
 
             // Process classifier members
             for member in &classifier.body {
                 self.visit_classifier_member(member);
             }
-
-            self.exit_namespace();
         } else {
             // Anonymous classifier - still process its members
             for member in &classifier.body {
@@ -189,8 +178,25 @@ impl<'a> KermlAdapter<'a> {
 
     pub(super) fn visit_element(&mut self, element: &Element) {
         match element {
-            Element::Package(package) => self.visit_package(package),
-            Element::Classifier(classifier) => self.visit_classifier(classifier),
+            Element::Package(package) => {
+                self.visit_package(package);
+                // Process children
+                for child in &package.elements {
+                    self.visit_element(child);
+                }
+                // Exit namespace if package has a name
+                if package.name.is_some() {
+                    self.exit_namespace();
+                }
+            }
+            Element::Classifier(classifier) => {
+                self.visit_classifier(classifier);
+                // Classifier already processes its members internally
+                // Exit namespace if classifier has a name
+                if classifier.name.is_some() {
+                    self.exit_namespace();
+                }
+            }
             Element::Feature(feature) => self.visit_feature(feature),
             Element::Import(_) | Element::Annotation(_) | Element::Comment(_) => {
                 // Skip for now
