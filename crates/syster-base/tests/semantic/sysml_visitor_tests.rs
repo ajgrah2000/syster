@@ -42,6 +42,103 @@ fn test_visitor_creates_definition_symbol() {
 }
 
 #[test]
+fn test_qualified_redefinition_does_not_create_duplicate_symbols() {
+    let source = r#"
+        package TestPkg {
+            item def Shell {
+                item edges {
+                    item vertices;
+                }
+            }
+            
+            item def Disc :> Shell {
+                item :>> edges {
+                    ref item :>> Shell::edges::vertices;
+                }
+            }
+        }
+    "#;
+    let mut pairs = SysMLParser::parse(Rule::model, source).unwrap();
+    let file = SysMLFile::from_pest(&mut pairs).unwrap();
+
+    let mut symbol_table = SymbolTable::new();
+    let mut graph = RelationshipGraph::new();
+    let mut adapter = SysmlAdapter::with_relationships(&mut symbol_table, &mut graph);
+
+    // This should not produce duplicate symbol errors
+    let result = adapter.populate(&file);
+    assert!(
+        result.is_ok(),
+        "Should not have errors, got: {:?}",
+        result.err()
+    );
+
+    // Shell should be defined exactly once
+    let all_symbols = symbol_table.all_symbols();
+    let shell_count = all_symbols
+        .iter()
+        .filter(|(name, _)| *name == "Shell")
+        .count();
+    assert_eq!(
+        shell_count, 1,
+        "Shell should be defined exactly once, got {} definitions",
+        shell_count
+    );
+}
+
+#[test]
+fn test_same_name_in_different_namespaces_creates_two_symbols() {
+    let source = r#"
+        package Namespace1 {
+            item def Shell;
+        }
+        
+        package Namespace2 {
+            item def Shell;
+        }
+    "#;
+    let mut pairs = SysMLParser::parse(Rule::model, source).unwrap();
+    let file = SysMLFile::from_pest(&mut pairs).unwrap();
+
+    let mut symbol_table = SymbolTable::new();
+    let mut graph = RelationshipGraph::new();
+    let mut adapter = SysmlAdapter::with_relationships(&mut symbol_table, &mut graph);
+
+    let result = adapter.populate(&file);
+    assert!(
+        result.is_ok(),
+        "Should not have errors, got: {:?}",
+        result.err()
+    );
+
+    // Should have two Shell symbols, one in each namespace
+    let all_symbols = symbol_table.all_symbols();
+    let shell_symbols: Vec<_> = all_symbols
+        .iter()
+        .filter(|(name, _)| *name == "Shell")
+        .collect();
+
+    assert_eq!(
+        shell_symbols.len(),
+        2,
+        "Should have exactly 2 Shell definitions in different namespaces, got {}",
+        shell_symbols.len()
+    );
+
+    // Verify they have different qualified names
+    let qualified_names: Vec<String> = shell_symbols
+        .iter()
+        .filter_map(|(_, symbol)| match symbol {
+            Symbol::Definition { qualified_name, .. } => Some(qualified_name.clone()),
+            _ => None,
+        })
+        .collect();
+
+    assert!(qualified_names.contains(&"Namespace1::Shell".to_string()));
+    assert!(qualified_names.contains(&"Namespace2::Shell".to_string()));
+}
+
+#[test]
 fn test_visitor_creates_usage_symbol() {
     let source = "part myCar : Vehicle;";
     let mut pairs = SysMLParser::parse(Rule::model, source).unwrap();

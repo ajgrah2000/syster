@@ -138,8 +138,14 @@ pub fn find_in<'a>(pair: &Pair<'a, Rule>, rule: Rule) -> Option<Pair<'a, Rule>> 
 }
 
 /// Recursively find name in nested identification rules
+/// Skips relationship parts to avoid extracting identifiers from redefinitions, subsettings, etc.
 pub fn find_name<'pest>(pairs: impl Iterator<Item = Pair<'pest, Rule>>) -> Option<String> {
     for pair in pairs {
+        // Skip relationship parts - don't extract identifiers from within these
+        if is_relationship_part(&pair) {
+            continue;
+        }
+
         if matches!(pair.as_rule(), Rule::identifier | Rule::identification) {
             return Some(pair.as_str().to_string());
         }
@@ -152,10 +158,16 @@ pub fn find_name<'pest>(pairs: impl Iterator<Item = Pair<'pest, Rule>>) -> Optio
 }
 
 /// Recursively find identifier and return (name, span)
+/// Skips relationship parts to avoid extracting identifiers from redefinitions, subsettings, etc.
 pub fn find_identifier_span<'a>(
     pairs: impl Iterator<Item = Pair<'a, Rule>>,
 ) -> (Option<String>, Option<crate::core::Span>) {
     for pair in pairs {
+        // Skip relationship parts - don't extract identifiers from within these
+        if is_relationship_part(&pair) {
+            continue;
+        }
+
         if matches!(pair.as_rule(), Rule::identifier | Rule::identification) {
             return (
                 Some(pair.as_str().to_string()),
@@ -167,6 +179,26 @@ pub fn find_identifier_span<'a>(
         }
     }
     (None, None)
+}
+
+/// Check if a rule represents a relationship part that should be skipped when finding names
+fn is_relationship_part(pair: &Pair<Rule>) -> bool {
+    matches!(
+        pair.as_rule(),
+        Rule::feature_specialization
+            | Rule::feature_specialization_part
+            | Rule::redefinition_part
+            | Rule::redefinitions
+            | Rule::owned_redefinition
+            | Rule::subsettings
+            | Rule::owned_subsetting
+            | Rule::typings
+            | Rule::references
+            | Rule::owned_reference_subsetting
+            | Rule::crosses
+            | Rule::subclassification_part
+            | Rule::owned_subclassification
+    )
 }
 
 // ============================================================================
