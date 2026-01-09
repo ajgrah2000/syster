@@ -106,7 +106,7 @@ EDITORS_VSCODE_DIR?=editors/vscode
 install:	
 	cargo build --release -p syster-lsp
 	(cd ${EDITORS_VSCODE_DIR} && npm install && npm run package)
-	code --install-extension ${EDITORS_VSCODE_DIR}/syster-*.vsix
+	code --install-extension ${EDITORS_VSCODE_DIR}/syster-*.vsix --force
 
 # Lint test file naming convention
 # - Test files must be in tests/ directories
