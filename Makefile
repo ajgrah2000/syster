@@ -102,8 +102,11 @@ watch:
 	cargo watch -x build
 
 # Install the binary
-install:
-	cargo install --path .
+EDITORS_VSCODE_DIR?=editors/vscode
+install:	
+	cargo build --release -p syster-lsp
+	(cd ${EDITORS_VSCODE_DIR} && npm install && npm run package)
+	code --install-extension ${EDITORS_VSCODE_DIR}/syster-*.vsix
 
 # Lint test file naming convention
 # - Test files must be in tests/ directories

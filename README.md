@@ -356,6 +356,9 @@ make build
 
 # Clean build artifacts
 make clean
+
+# Clean install
+make install
 ```
 
 ### Key Design Patterns
